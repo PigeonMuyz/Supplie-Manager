@@ -1,3 +1,11 @@
+//
+//  SummaryView.swift
+//  Supplie Manager
+//
+//  Created by 黄天晨 on 2025/3/6.
+//
+
+
 import SwiftUI
 
 // 统计页面
@@ -111,7 +119,6 @@ struct SummaryCard: View {
             }
         }
         .padding()
-        .background(Color(UIColor.systemBackground))
         .cornerRadius(10)
         .shadow(color: colorScheme == .dark ? Color.black.opacity(0.5) : Color.gray.opacity(0.3), radius: 3)
     }

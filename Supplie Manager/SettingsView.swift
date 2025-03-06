@@ -1,3 +1,11 @@
+//
+//  SettingsView.swift
+//  Supplie Manager
+//
+//  Created by 黄天晨 on 2025/3/6.
+//
+
+
 import SwiftUI
 
 // 设置页面
