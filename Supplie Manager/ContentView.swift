@@ -134,6 +134,13 @@ struct MyMaterialsView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            store.deleteMaterial(id: material.id)
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
                 }
             }
             .navigationTitle("我的耗材")
@@ -334,6 +341,13 @@ struct RecordUsageView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                store.deletePrintRecord(id: record.id)
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        }
                     }
                 }
                 .listStyle(InsetGroupedListStyle())
@@ -441,14 +455,43 @@ struct PresetManagementView: View {
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("耗材预设")) {
-                    ForEach(store.materialPresets) { preset in
-                        HStack {
-                            Circle()
-                                .fill(preset.color)
-                                .frame(width: 20, height: 20)
-                            
-                            Text(preset.fullName)
+                // 首先按品牌分组
+                ForEach(Array(Dictionary(grouping: store.materialPresets, by: { $0.brand }).sorted(by: { $0.key < $1.key })), id: \.key) { brand, brandPresets in
+                    Section(header: Text(brand)) {
+                        // 在每个品牌下按材料类型（主分类）分组
+                        ForEach(Array(Dictionary(grouping: brandPresets, by: { $0.mainCategory }).sorted(by: { $0.key < $1.key })), id: \.key) { mainCategory, categoryPresets in
+                            DisclosureGroup(mainCategory) {
+                                // 在每个材料类型下按细分类型分组
+                                ForEach(Array(Dictionary(grouping: categoryPresets, by: { $0.subCategory }).sorted(by: { $0.key < $1.key })), id: \.key) { subCategory, subCategoryPresets in
+                                    HStack {
+                                        Text(subCategory != "无" ? subCategory : "标准")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    // 显示该细分类型下的所有预设
+                                    ForEach(subCategoryPresets) { preset in
+                                        HStack {
+                                            Circle()
+                                                .fill(preset.color)
+                                                .frame(width: 20, height: 20)
+                                            
+                                            Text(preset.fullName)
+                                                .font(.body)
+                                        }
+                                        .padding(.leading, 10)
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                if let index = store.materialPresets.firstIndex(where: { $0.id == preset.id }) {
+                                                    store.deletePreset(at: IndexSet([index]))
+                                                }
+                                            } label: {
+                                                Label("删除", systemImage: "trash")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -282,4 +282,47 @@ class MaterialStore: ObservableObject {
     func getTotalUsedWeight() -> Double {
         return printRecords.reduce(0) { $0 + $1.weightUsed }
     }
+    
+    func deleteMaterial(at indexSet: IndexSet) {
+        materials.remove(atOffsets: indexSet)
+        saveData()
+    }
+
+    func deleteMaterial(id: UUID) {
+        materials.removeAll(where: { $0.id == id })
+        saveData()
+    }
+
+    func deletePrintRecord(at indexSet: IndexSet) {
+        printRecords.remove(atOffsets: indexSet)
+        saveData()
+    }
+
+    func deletePrintRecord(id: UUID) {
+        printRecords.removeAll(where: { $0.id == id })
+        saveData()
+    }
+
+    func deletePreset(at indexSet: IndexSet) {
+        // 过滤出自定义预设
+        let customPresets = materialPresets.filter { preset in
+            !bambuPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
+            !esunPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
+            !polymakerPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory })
+        }
+        
+        // 只删除自定义预设
+        let customIndicesToDelete = indexSet.map { idx -> Int? in
+            let preset = materialPresets[idx]
+            return customPresets.firstIndex(where: { $0.id == preset.id })
+        }.compactMap { $0 }
+        
+        for index in customIndicesToDelete.sorted(by: >) {
+            if let presetIndex = materialPresets.firstIndex(where: { $0.id == customPresets[index].id }) {
+                materialPresets.remove(at: presetIndex)
+            }
+        }
+        
+        saveData()
+    }
 }
