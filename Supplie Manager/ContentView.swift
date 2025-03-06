@@ -177,6 +177,15 @@ struct AddMaterialView: View {
     @State private var price = ""
     @State private var weight = ""
     
+    // 计算属性：获取所选品牌/主分类/子分类的预设
+    private var filteredPresets: [MaterialPreset] {
+        store.materialPresets.filter { preset in
+            preset.brand == selectedBrand &&
+            preset.mainCategory == selectedMainCategory &&
+            preset.subCategory == selectedSubCategory
+        }
+    }
+    
     var body: some View {
         NavigationView {
             Form {
@@ -215,6 +224,29 @@ struct AddMaterialView: View {
                     if selectedSubCategory == "自定义" {
                         TextField("输入子分类名", text: $customSubCategory)
                     }
+                    
+                    // 如果有匹配的预设，显示颜色预设选择器
+                    if !filteredPresets.isEmpty {
+                        Picker("预设颜色", selection: Binding(
+                            get: { colorName },
+                            set: { selectedColorName in
+                                if let preset = filteredPresets.first(where: { $0.colorName == selectedColorName }) {
+                                    colorName = preset.colorName
+                                    colorHex = preset.colorHex
+                                }
+                            }
+                        )) {
+                            Text("自定义").tag("")
+                            ForEach(filteredPresets) { preset in
+                                HStack {
+                                    Circle()
+                                        .fill(preset.color)
+                                        .frame(width: 12, height: 12)
+                                    Text(preset.colorName)
+                                }.tag(preset.colorName)
+                            }
+                        }
+                    }
                 }
                 
                 Section(header: Text("材料详情")) {
@@ -224,7 +256,19 @@ struct AddMaterialView: View {
                     // 颜色选择
                     ColorPicker("颜色", selection: Binding(
                         get: { Color(hex: colorHex) ?? .white },
-                        set: { _ in }
+                        set: { newColor in
+                            // 将Color转换为hex值
+                            if let components = newColor.cgColor?.components,
+                               components.count >= 3 {
+                                let r = Float(components[0])
+                                let g = Float(components[1])
+                                let b = Float(components[2])
+                                colorHex = String(format: "#%02lX%02lX%02lX",
+                                                  lroundf(r * 255),
+                                                  lroundf(g * 255),
+                                                  lroundf(b * 255))
+                            }
+                        }
                     ))
                     
                     // 购入日期
@@ -257,7 +301,7 @@ struct AddMaterialView: View {
         let validBrand = selectedBrand != "" && (selectedBrand != "自定义" || customBrand != "")
         let validMainCategory = selectedMainCategory != "" && (selectedMainCategory != "自定义" || customMainCategory != "")
         let validSubCategory = selectedSubCategory != "自定义" || customSubCategory != ""
-        let validDetails = !price.isEmpty && !weight.isEmpty
+        let validDetails = !colorName.isEmpty && !price.isEmpty && !weight.isEmpty
         
         return validBrand && validMainCategory && validSubCategory && validDetails
     }
@@ -450,6 +494,7 @@ struct PresetManagementView: View {
     @State private var customBrand = ""
     @State private var customMainCategory = ""
     @State private var customSubCategory = ""
+    @State private var colorName = "" // 新增的颜色名称字段
     @State private var colorHex = "#FFFFFF"
     
     var body: some View {
@@ -463,30 +508,26 @@ struct PresetManagementView: View {
                             DisclosureGroup(mainCategory) {
                                 // 在每个材料类型下按细分类型分组
                                 ForEach(Array(Dictionary(grouping: categoryPresets, by: { $0.subCategory }).sorted(by: { $0.key < $1.key })), id: \.key) { subCategory, subCategoryPresets in
-                                    HStack {
-                                        Text(subCategory != "无" ? subCategory : "标准")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    // 显示该细分类型下的所有预设
-                                    ForEach(subCategoryPresets) { preset in
-                                        HStack {
-                                            Circle()
-                                                .fill(preset.color)
-                                                .frame(width: 20, height: 20)
-                                            
-                                            Text(preset.fullName)
-                                                .font(.body)
-                                        }
-                                        .padding(.leading, 10)
-                                        .swipeActions(edge: .trailing) {
-                                            Button(role: .destructive) {
-                                                if let index = store.materialPresets.firstIndex(where: { $0.id == preset.id }) {
-                                                    store.deletePreset(at: IndexSet([index]))
+                                    DisclosureGroup(subCategory) {
+                                        // 显示该细分类型下的所有颜色预设
+                                        ForEach(subCategoryPresets) { preset in
+                                            HStack {
+                                                Circle()
+                                                    .fill(preset.color)
+                                                    .frame(width: 20, height: 20)
+                                                
+                                                Text(preset.colorName)
+                                                    .font(.body)
+                                            }
+                                            .padding(.leading, 10)
+                                            .swipeActions(edge: .trailing) {
+                                                Button(role: .destructive) {
+                                                    if let index = store.materialPresets.firstIndex(where: { $0.id == preset.id }) {
+                                                        store.deletePreset(at: IndexSet([index]))
+                                                    }
+                                                } label: {
+                                                    Label("删除", systemImage: "trash")
                                                 }
-                                            } label: {
-                                                Label("删除", systemImage: "trash")
                                             }
                                         }
                                     }
@@ -545,10 +586,25 @@ struct PresetManagementView: View {
                                 TextField("输入子分类名", text: $customSubCategory)
                             }
                             
+                            // 颜色名称
+                            TextField("颜色名称", text: $colorName)
+                            
                             // 颜色选择
                             ColorPicker("颜色", selection: Binding(
                                 get: { Color(hex: colorHex) ?? .white },
-                                set: { _ in }
+                                set: { newColor in
+                                    // 将Color转换为hex值
+                                    if let components = newColor.cgColor?.components,
+                                       components.count >= 3 {
+                                        let r = Float(components[0])
+                                        let g = Float(components[1])
+                                        let b = Float(components[2])
+                                        colorHex = String(format: "#%02lX%02lX%02lX",
+                                                          lroundf(r * 255),
+                                                          lroundf(g * 255),
+                                                          lroundf(b * 255))
+                                    }
+                                }
                             ))
                         }
                     }
@@ -573,8 +629,9 @@ struct PresetManagementView: View {
         let validBrand = selectedBrand != "" && (selectedBrand != "自定义" || customBrand != "")
         let validMainCategory = selectedMainCategory != "" && (selectedMainCategory != "自定义" || customMainCategory != "")
         let validSubCategory = selectedSubCategory != "自定义" || customSubCategory != ""
+        let validColorName = !colorName.isEmpty // 颜色名称不能为空
         
-        return validBrand && validMainCategory && validSubCategory
+        return validBrand && validMainCategory && validSubCategory && validColorName
     }
     
     private func savePreset() {
@@ -608,6 +665,7 @@ struct PresetManagementView: View {
             brand: finalBrand,
             mainCategory: finalMainCategory,
             subCategory: finalSubCategory,
+            colorName: colorName, // 新增的颜色名称
             colorHex: colorHex
         )
         
@@ -621,6 +679,7 @@ struct PresetManagementView: View {
         customBrand = ""
         customMainCategory = ""
         customSubCategory = ""
+        colorName = "" // 重置颜色名称
         colorHex = "#FFFFFF"
     }
 }

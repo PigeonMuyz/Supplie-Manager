@@ -51,6 +51,7 @@ struct MaterialPreset: Identifiable, Codable {
     var brand: String
     var mainCategory: String
     var subCategory: String
+    var colorName: String // 新增的颜色名称字段
     var colorHex: String
     
     var color: Color {
@@ -67,6 +68,10 @@ struct MaterialPreset: Identifiable, Codable {
         
         if !subCategory.isEmpty && subCategory != "无" {
             parts.append(subCategory)
+        }
+        
+        if !colorName.isEmpty {
+            parts.append(colorName)
         }
         
         return parts.joined(separator: " ")
@@ -112,34 +117,36 @@ class MaterialStore: ObservableObject {
     // 预设选项
     @Published var brands: [String] = ["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture", "自定义"]
     @Published var mainCategories: [String] = ["PLA", "PLA+", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA", "自定义"]
-    @Published var subCategories: [String] = ["无", "哑光", "亮面", "丝绸", "荧光", "金属质感", "木质感", "碳纤维", "自定义"]
-    
-    // Bambu Lab常见预设
+    @Published var subCategories: [String] = ["无", "Matte", "Basic", "Silk", "Fluor", "Metal", "Wood", "CF", "自定义"]
+
+    // 修改 MaterialStore 内的预设数据
     private let bambuPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "哑光", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "亮面", colorHex: "#000000"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "丝绸", colorHex: "#4169E1"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA-CF", subCategory: "碳纤维", colorHex: "#1A1A1A"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "哑光", colorHex: "#FF4500"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "ABS", subCategory: "哑光", colorHex: "#3CB371"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "TPU", subCategory: "无", colorHex: "#FFD700"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PVA", subCategory: "无", colorHex: "#F5F5F5"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PA-CF", subCategory: "碳纤维", colorHex: "#2F4F4F")
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "哑光白", colorHex: "#FFFFFF"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "象牙白", colorHex: "#FFF8DC"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "哑光黑", colorHex: "#000000"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "象牙黑", colorHex: "#1A1A1A"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Silk", colorName: "丝绸蓝", colorHex: "#4169E1"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "CF", colorName: "碳纤维黑", colorHex: "#1A1A1A"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Matte", colorName: "哑光橙", colorHex: "#FF4500"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "ABS", subCategory: "Matte", colorName: "哑光绿", colorHex: "#3CB371"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "TPU", subCategory: "Basic", colorName: "标准黄", colorHex: "#FFD700"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PVA", subCategory: "Basic", colorName: "标准白", colorHex: "#F5F5F5"),
+        MaterialPreset(brand: "Bambu Lab", mainCategory: "PA-CF", subCategory: "Carbon Fiber", colorName: "碳纤维深灰", colorHex: "#2F4F4F")
     ]
-    
+
     // eSun常见预设
     private let esunPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "eSUN", mainCategory: "PLA+", subCategory: "无", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "eSUN", mainCategory: "PETG", subCategory: "无", colorHex: "#000000"),
-        MaterialPreset(brand: "eSUN", mainCategory: "ABS+", subCategory: "无", colorHex: "#FF0000"),
-        MaterialPreset(brand: "eSUN", mainCategory: "TPU", subCategory: "无", colorHex: "#0000FF")
+        MaterialPreset(brand: "eSUN", mainCategory: "PLA+", subCategory: "Basic", colorName: "标准白", colorHex: "#FFFFFF"),
+        MaterialPreset(brand: "eSUN", mainCategory: "PETG", subCategory: "Basic", colorName: "标准黑", colorHex: "#000000"),
+        MaterialPreset(brand: "eSUN", mainCategory: "ABS+", subCategory: "Basic", colorName: "标准红", colorHex: "#FF0000"),
+        MaterialPreset(brand: "eSUN", mainCategory: "TPU", subCategory: "Basic", colorName: "标准蓝", colorHex: "#0000FF")
     ]
-    
+
     // Polymaker常见预设
     private let polymakerPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyLite PLA", subCategory: "无", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyMax PLA", subCategory: "无", colorHex: "#000000"),
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyTerra PLA", subCategory: "无", colorHex: "#8B4513")
+        MaterialPreset(brand: "Polymaker", mainCategory: "PolyLite PLA", subCategory: "Basic", colorName: "标准白", colorHex: "#FFFFFF"),
+        MaterialPreset(brand: "Polymaker", mainCategory: "PolyMax PLA", subCategory: "Basic", colorName: "标准黑", colorHex: "#000000"),
+        MaterialPreset(brand: "Polymaker", mainCategory: "PolyTerra PLA", subCategory: "Matte", colorName: "木质棕", colorHex: "#8B4513")
     ]
     
     init() {
