@@ -352,4 +352,41 @@ class MaterialStore: ObservableObject {
             saveData()
         }
     }
+    func getTotalUsedCost() -> Double {
+        var totalCost: Double = 0
+        
+        for record in printRecords {
+            totalCost += getCostForRecord(record)
+        }
+        
+        return totalCost
+    }
+
+    func getCostForRecord(_ record: PrintRecord) -> Double {
+        // 找到对应的材料
+        if let material = materials.first(where: { $0.id == record.materialId }) {
+            // 计算单价 = 总价 / 总重量
+            let unitPrice = material.price / material.initialWeight
+            // 计算成本 = 单价 * 使用量
+            return unitPrice * record.weightUsed
+        } else {
+            // 如果找不到对应材料（可能已被删除），尝试在所有打印记录中寻找相同材料ID的记录
+            if let similarRecord = printRecords.first(where: {
+                $0.materialId == record.materialId && $0.id != record.id
+            }), let material = materials.first(where: { $0.id == similarRecord.materialId }) {
+                let unitPrice = material.price / material.initialWeight
+                return unitPrice * record.weightUsed
+            }
+            
+            // 如果还是找不到，尝试用平均单价估算
+            let materialsWithPrices = materials.filter { $0.initialWeight > 0 }
+            if !materialsWithPrices.isEmpty {
+                let averageUnitPrice = materialsWithPrices.map { $0.price / $0.initialWeight }.reduce(0, +) / Double(materialsWithPrices.count)
+                return averageUnitPrice * record.weightUsed
+            }
+            
+            // 实在找不到任何参考价格，返回0
+            return 0
+        }
+    }
 }

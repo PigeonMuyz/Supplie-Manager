@@ -42,6 +42,20 @@ struct StatisticsView: View {
                         Text("\(String(format: "%.2f", store.getTotalUsedWeight()))g")
                             .foregroundColor(.secondary)
                     }
+                    
+                    HStack {
+                        Text("累计耗材价格")
+                        Spacer()
+                        Text("¥\(String(format: "%.2f", store.getTotalUsedCost()))")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("平均耗材成本")
+                        Spacer()
+                        Text("¥\(String(format: "%.2f", store.getTotalUsedWeight() > 0 ? store.getTotalUsedCost() / store.getTotalUsedWeight() : 0))/g")
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Section(header: Text("现有耗材")) {
@@ -55,6 +69,9 @@ struct StatisticsView: View {
                                 Text(material.fullName)
                                     .font(.headline)
                                 Text("剩余: \(String(format: "%.2f", material.remainingWeight))g / \(material.formattedWeight)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("单价: ¥\(String(format: "%.2f", material.price / material.initialWeight))/g")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -86,9 +103,13 @@ struct StatisticsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 
-                                Text("日期: \(record.date.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                HStack {
+                                    Text("成本: ¥\(String(format: "%.2f", store.getCostForRecord(record)))")
+                                    Spacer()
+                                    Text("日期: \(record.date.formatted(date: .abbreviated, time: .shortened))")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                         }
                     }
@@ -381,9 +402,13 @@ struct RecordUsageView: View {
                             }
                             .foregroundColor(.secondary)
                             
-                            Text("日期: \(record.date.formatted(date: .abbreviated, time: .shortened))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            HStack {
+                                Text("成本: ¥\(String(format: "%.2f", store.getCostForRecord(record)))")
+                                Spacer()
+                                Text("日期: \(record.date.formatted(date: .abbreviated, time: .shortened))")
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -436,10 +461,22 @@ struct RecordUsageView: View {
                                     Text("剩余: \(String(format: "%.2f", material.remainingWeight))g")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                    
+                                    Text("单价: ¥\(String(format: "%.2f", material.price / material.initialWeight))/g")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
                                 
                                 TextField("用量(g)", text: $weightUsed)
                                     .keyboardType(.decimalPad)
+                                
+                                if let materialId = selectedMaterialId,
+                                   let material = store.materials.first(where: { $0.id == materialId }),
+                                   let weight = Double(weightUsed), weight > 0 {
+                                    Text("预计成本: ¥\(String(format: "%.2f", (material.price / material.initialWeight) * weight))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
