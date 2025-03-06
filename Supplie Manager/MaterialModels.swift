@@ -332,4 +332,24 @@ class MaterialStore: ObservableObject {
         
         saveData()
     }
+    func removeCustomBrand(_ brand: String) {
+        if let index = brands.firstIndex(of: brand) {
+            brands.remove(at: index)
+            saveData()
+        }
+    }
+
+    func removeCustomMainCategory(_ category: String) {
+        if let index = mainCategories.firstIndex(of: category) {
+            mainCategories.remove(at: index)
+            saveData()
+        }
+    }
+
+    func removeCustomSubCategory(_ category: String) {
+        if let index = subCategories.firstIndex(of: category) {
+            subCategories.remove(at: index)
+            saveData()
+        }
+    }
 }
