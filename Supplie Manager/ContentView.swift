@@ -59,7 +59,8 @@ struct StatisticsView: View {
                 }
                 
                 Section(header: Text("现有耗材")) {
-                    ForEach(store.materials) { material in
+                    // 只显示有剩余的耗材
+                    ForEach(store.materials.filter { $0.remainingWeight > 0 }) { material in
                         HStack {
                             Circle()
                                 .fill(material.color)
@@ -124,43 +125,63 @@ struct StatisticsView: View {
 struct MyMaterialsView: View {
     @ObservedObject var store: MaterialStore
     @State private var isShowingAddMaterialSheet = false
+    @State private var showEmptyMaterials = false // 控制已用完耗材的折叠状态
     
     var body: some View {
         NavigationView {
             List {
-                ForEach(store.materials) { material in
-                    HStack {
-                        Circle()
-                            .fill(material.color)
-                            .frame(width: 20, height: 20)
-                        
-                        VStack(alignment: .leading) {
-                            Text(material.fullName)
-                                .font(.headline)
-                            
-                            Text("购入日期: \(material.purchaseDate.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text("价格: ¥\(String(format: "%.2f", material.price))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text("剩余: \(String(format: "%.2f", material.remainingWeight))g / \(material.formattedWeight)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            // 耗材使用进度条
-                            ProgressView(value: 1 - (material.remainingWeight / material.initialWeight))
+                // 先显示有剩余的耗材
+                if !store.materials.filter({ $0.remainingWeight > 0 }).isEmpty {
+                    Section(header: Text("可用耗材")) {
+                        ForEach(store.materials.filter { $0.remainingWeight > 0 }) { material in
+                            MaterialRow(material: material)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        store.deleteMaterial(id: material.id)
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
+                                    
+                                    Button {
+                                        // 将耗材标记为已用完
+                                        store.markMaterialAsEmpty(id: material.id)
+                                    } label: {
+                                        Label("标记为用完", systemImage: "checkmark.circle")
+                                    }
+                                    .tint(.blue)
+                                }
                         }
                     }
-                    .padding(.vertical, 4)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            store.deleteMaterial(id: material.id)
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
+                }
+                
+                // 已用完的耗材(折叠式)
+                if !store.materials.filter({ $0.remainingWeight <= 0 }).isEmpty {
+                    Section {
+                        DisclosureGroup(
+                            isExpanded: $showEmptyMaterials,
+                            content: {
+                                ForEach(store.materials.filter { $0.remainingWeight <= 0 }) { material in
+                                    MaterialRow(material: material)
+                                        .foregroundColor(.secondary)
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                store.deleteMaterial(id: material.id)
+                                            } label: {
+                                                Label("删除", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text("已用完")
+                                        .font(.headline)
+                                    Spacer()
+                                    Text("\(store.materials.filter { $0.remainingWeight <= 0 }.count)项")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -177,6 +198,42 @@ struct MyMaterialsView: View {
             .sheet(isPresented: $isShowingAddMaterialSheet) {
                 AddMaterialView(store: store, isPresented: $isShowingAddMaterialSheet)
             }
+        }
+    }
+}
+
+// 抽取出耗材行视图组件
+struct MaterialRow: View {
+    let material: Material
+    
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(material.color)
+                .frame(width: 20, height: 20)
+            
+            VStack(alignment: .leading) {
+                Text(material.fullName)
+                    .font(.headline)
+                
+                Text("购入日期: \(material.purchaseDate.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption)
+                
+                Text("价格: ¥\(String(format: "%.2f", material.price))")
+                    .font(.caption)
+                
+                if material.remainingWeight > 0 {
+                    Text("剩余: \(String(format: "%.2f", material.remainingWeight))g / \(material.formattedWeight)")
+                        .font(.caption)
+                } else {
+                    Text("状态: 已用完")
+                        .font(.caption)
+                }
+                
+                // 耗材使用进度条
+                ProgressView(value: 1 - (material.remainingWeight / material.initialWeight))
+            }
+            .padding(.vertical, 4)
         }
     }
 }
@@ -381,6 +438,11 @@ struct RecordUsageView: View {
     @State private var selectedMaterialId: UUID?
     @State private var weightUsed = ""
     
+    // 只获取有剩余的材料
+    private var availableMaterials: [Material] {
+        store.materials.filter { $0.remainingWeight > 0 }
+    }
+    
     var body: some View {
         NavigationView {
             VStack {
@@ -440,13 +502,13 @@ struct RecordUsageView: View {
                         }
                         
                         Section(header: Text("使用材料")) {
-                            if store.materials.isEmpty {
-                                Text("请先添加耗材")
+                            if availableMaterials.isEmpty {
+                                Text("没有可用耗材，请先添加耗材")
                                     .foregroundColor(.secondary)
                             } else {
                                 Picker("选择材料", selection: $selectedMaterialId) {
                                     Text("请选择").tag(nil as UUID?)
-                                    ForEach(store.materials) { material in
+                                    ForEach(availableMaterials) { material in
                                         HStack {
                                             Circle()
                                                 .fill(material.color)
@@ -457,7 +519,7 @@ struct RecordUsageView: View {
                                 }
                                 
                                 if let materialId = selectedMaterialId,
-                                   let material = store.materials.first(where: { $0.id == materialId }) {
+                                   let material = availableMaterials.first(where: { $0.id == materialId }) {
                                     Text("剩余: \(String(format: "%.2f", material.remainingWeight))g")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
@@ -471,11 +533,18 @@ struct RecordUsageView: View {
                                     .keyboardType(.decimalPad)
                                 
                                 if let materialId = selectedMaterialId,
-                                   let material = store.materials.first(where: { $0.id == materialId }),
+                                   let material = availableMaterials.first(where: { $0.id == materialId }),
                                    let weight = Double(weightUsed), weight > 0 {
                                     Text("预计成本: ¥\(String(format: "%.2f", (material.price / material.initialWeight) * weight))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                    
+                                    // 添加警告，如果用量超过剩余量
+                                    if weight > material.remainingWeight {
+                                        Text("警告：用量超过剩余量！最大可用：\(String(format: "%.2f", material.remainingWeight))g")
+                                            .foregroundColor(.red)
+                                            .font(.caption)
+                                    }
                                 }
                             }
                         }
@@ -490,13 +559,16 @@ struct RecordUsageView: View {
                             if !modelName.isEmpty && selectedMaterialId != nil && !weightUsed.isEmpty,
                                let weight = Double(weightUsed),
                                let materialId = selectedMaterialId,
-                               let material = store.materials.first(where: { $0.id == materialId }) {
+                               let material = availableMaterials.first(where: { $0.id == materialId }) {
+                                // 限制用量不超过剩余量
+                                let actualWeight = min(weight, material.remainingWeight)
+                                
                                 let newRecord = PrintRecord(
                                     modelName: modelName,
                                     makerWorldLink: makerWorldLink,
                                     materialId: materialId,
                                     materialName: material.fullName,
-                                    weightUsed: weight,
+                                    weightUsed: actualWeight,
                                     date: Date()
                                 )
                                 store.addPrintRecord(newRecord)
@@ -504,7 +576,8 @@ struct RecordUsageView: View {
                                 resetForm()
                             }
                         }
-                        .disabled(selectedMaterialId == nil || modelName.isEmpty || weightUsed.isEmpty)
+                        .disabled(selectedMaterialId == nil || modelName.isEmpty || weightUsed.isEmpty ||
+                                  (selectedMaterialId != nil && Double(weightUsed) ?? 0 <= 0))
                     )
                 }
             }

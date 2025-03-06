@@ -389,4 +389,11 @@ class MaterialStore: ObservableObject {
             return 0
         }
     }
+    func markMaterialAsEmpty(id: UUID) {
+        if let index = materials.firstIndex(where: { $0.id == id }) {
+            // 将剩余量设为 0
+            materials[index].remainingWeight = 0
+            saveData()
+        }
+    }
 }
