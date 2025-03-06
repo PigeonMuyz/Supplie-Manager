@@ -496,6 +496,7 @@ struct PresetManagementView: View {
     @State private var customSubCategory = ""
     @State private var colorName = "" // 新增的颜色名称字段
     @State private var colorHex = "#FFFFFF"
+    @State private var isShowingCategoryManagement = false
     
     var body: some View {
         NavigationView {
@@ -546,6 +547,17 @@ struct PresetManagementView: View {
                         Image(systemName: "plus")
                     }
                 }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        isShowingCategoryManagement = true
+                    }) {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingCategoryManagement) {
+                CategoryManagementView(store: store)
             }
             .sheet(isPresented: $isShowingAddPresetSheet) {
                 NavigationView {
@@ -681,6 +693,60 @@ struct PresetManagementView: View {
         customSubCategory = ""
         colorName = "" // 重置颜色名称
         colorHex = "#FFFFFF"
+    }
+}
+
+// MARK: 分类管理视图
+struct CategoryManagementView: View {
+    @ObservedObject var store: MaterialStore
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("品牌管理")) {
+                    ForEach(store.brands.filter { $0 != "自定义" && !["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture"].contains($0) }, id: \.self) { brand in
+                        Text(brand)
+                    }
+                    .onDelete { indexSet in
+                        // 获取要删除的自定义品牌
+                        let customBrands = store.brands.filter { $0 != "自定义" && !["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture"].contains($0) }
+                        // 从自定义品牌中找到要删除的项
+                        for index in indexSet {
+                            store.removeCustomBrand(customBrands[index])
+                        }
+                    }
+                }
+                
+                Section(header: Text("主分类管理")) {
+                    ForEach(store.mainCategories.filter { $0 != "自定义" && !["PLA", "PLA+", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA"].contains($0) }, id: \.self) { category in
+                        Text(category)
+                    }
+                    .onDelete { indexSet in
+                        let customCategories = store.mainCategories.filter { $0 != "自定义" && !["PLA", "PLA+", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA"].contains($0) }
+                        for index in indexSet {
+                            store.removeCustomMainCategory(customCategories[index])
+                        }
+                    }
+                }
+                
+                Section(header: Text("子分类管理")) {
+                    ForEach(store.subCategories.filter { $0 != "自定义" && $0 != "无" && !["哑光", "亮面", "丝绸", "荧光", "金属质感", "木质感", "碳纤维"].contains($0) }, id: \.self) { category in
+                        Text(category)
+                    }
+                    .onDelete { indexSet in
+                        let customCategories = store.subCategories.filter { $0 != "自定义" && $0 != "无" && !["哑光", "亮面", "丝绸", "荧光", "金属质感", "木质感", "碳纤维"].contains($0) }
+                        for index in indexSet {
+                            store.removeCustomSubCategory(customCategories[index])
+                        }
+                    }
+                }
+            }
+            .navigationTitle("分类管理")
+            .navigationBarItems(trailing: Button("完成") {
+                presentationMode.wrappedValue.dismiss()
+            })
+        }
     }
 }
 
