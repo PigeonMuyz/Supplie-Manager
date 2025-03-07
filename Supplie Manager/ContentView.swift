@@ -69,7 +69,17 @@ struct StatisticsView: View {
                 
                 Section(header: Text("现有耗材")) {
                     // 只显示有剩余的耗材
-                    ForEach(store.materials.filter { $0.remainingWeight > 0 }) { material in
+                    ForEach(store.materials.filter { $0.remainingWeight > 0 }
+                             .sorted(by: {
+                                 // 首先按照是否有使用量排序（初始重量-剩余重量>0表示有使用）
+                                 let hasUsage1 = $0.initialWeight - $0.remainingWeight > 0
+                                 let hasUsage2 = $1.initialWeight - $1.remainingWeight > 0
+                                 if hasUsage1 != hasUsage2 {
+                                     return hasUsage1 && !hasUsage2
+                                 }
+                                 // 其次按购入时间降序排序（较新的排在前面）
+                                 return $0.purchaseDate > $1.purchaseDate
+                             })) { material in
                         HStack {
                             Circle()
                                 .fill(material.color)
@@ -150,7 +160,17 @@ struct MyMaterialsView: View {
                 // 先显示有剩余的耗材
                 if !store.materials.filter({ $0.remainingWeight > 0 }).isEmpty {
                     Section(header: Text("可用耗材")) {
-                        ForEach(store.materials.filter { $0.remainingWeight > 0 }) { material in
+                        ForEach(store.materials.filter { $0.remainingWeight > 0 }
+                                 .sorted(by: {
+                                     // 首先按照是否有使用量排序（初始重量-剩余重量>0表示有使用）
+                                     let hasUsage1 = $0.initialWeight - $0.remainingWeight > 0
+                                     let hasUsage2 = $1.initialWeight - $1.remainingWeight > 0
+                                     if hasUsage1 != hasUsage2 {
+                                         return hasUsage1 && !hasUsage2
+                                     }
+                                     // 其次按购入时间降序排序（较新的排在前面）
+                                     return $0.purchaseDate > $1.purchaseDate
+                                 })) { material in
                             MaterialRow(material: material)
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
@@ -469,7 +489,7 @@ struct RecordUsageView: View {
         NavigationView {
             VStack {
                 List {
-                    ForEach(store.printRecords.sorted(by: { $0.date > $1.date })) { record in
+                    ForEach(store.printRecords.sorted(by: { $0.date > $1.date }).prefix(5)) { record in
                         VStack(alignment: .leading) {
                             Text(record.modelName)
                                 .font(.headline)
