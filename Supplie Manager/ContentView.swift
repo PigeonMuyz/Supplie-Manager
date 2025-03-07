@@ -13,7 +13,7 @@ struct ContentView: View {
         TabView {
             StatisticsView(store: store)
                 .tabItem {
-                    Label("统计", systemImage: "chart.bar.fill")
+                    Label("数据统计", systemImage: "chart.bar.fill")
                 }
             
             MyMaterialsView(store: store)
@@ -23,12 +23,12 @@ struct ContentView: View {
             
             RecordUsageView(store: store)
                 .tabItem {
-                    Label("记录", systemImage: "pencil")
+                    Label("打印记录", systemImage: "pencil")
                 }
             
             PresetManagementView(store: store)
                 .tabItem {
-                    Label("预设", systemImage: "list.bullet")
+                    Label("耗材预设", systemImage: "list.bullet")
                 }
         }
     }
@@ -135,7 +135,7 @@ struct StatisticsView: View {
                     }
                 }
             }
-            .navigationTitle("耗材统计")
+            .navigationTitle("数据统计")
         }
     }
     
@@ -479,17 +479,39 @@ struct RecordUsageView: View {
     @State private var makerWorldLink = ""
     @State private var selectedMaterialId: UUID?
     @State private var weightUsed = ""
+    @State private var searchText = ""
+    @State private var loadedRecordsCount = 20 // 初始加载记录数量
     
     // 只获取有剩余的材料
     private var availableMaterials: [Material] {
         store.materials.filter { $0.remainingWeight > 0 }
     }
     
+    // 搜索过滤和排序后的记录
+    private var filteredAndSortedRecords: [PrintRecord] {
+        let sorted = store.printRecords.sorted(by: { $0.date > $1.date })
+        
+        if searchText.isEmpty {
+            return sorted
+        } else {
+            return sorted.filter { record in
+                record.modelName.localizedCaseInsensitiveContains(searchText) ||
+                record.materialName.localizedCaseInsensitiveContains(searchText) ||
+                record.makerWorldLink.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    // 当前应该显示的记录数量（考虑懒加载）
+    private var recordsToShow: [PrintRecord] {
+        return Array(filteredAndSortedRecords.prefix(min(loadedRecordsCount, filteredAndSortedRecords.count)))
+    }
+    
     var body: some View {
         NavigationView {
             VStack {
                 List {
-                    ForEach(store.printRecords.sorted(by: { $0.date > $1.date }).prefix(5)) { record in
+                    ForEach(recordsToShow) { record in
                         VStack(alignment: .leading) {
                             Text(record.modelName)
                                 .font(.headline)
@@ -521,11 +543,31 @@ struct RecordUsageView: View {
                                 Label("删除", systemImage: "trash")
                             }
                         }
+                        .onAppear {
+                            // 如果显示到列表最后几个项目，加载更多数据
+                            if record.id == recordsToShow.last?.id && loadedRecordsCount < filteredAndSortedRecords.count {
+                                loadMoreContent()
+                            }
+                        }
+                    }
+                    
+                    // 如果还有更多内容可以加载，显示加载按钮
+                    if loadedRecordsCount < filteredAndSortedRecords.count {
+                        Button(action: loadMoreContent) {
+                            HStack {
+                                Spacer()
+                                Text("加载更多...")
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                        .padding(.vertical, 8)
                     }
                 }
                 .listStyle(InsetGroupedListStyle())
+                .searchable(text: $searchText, prompt: "搜索模型名称、材料...")
             }
-            .navigationTitle("用量记录")
+            .navigationTitle("打印记录")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -623,7 +665,16 @@ struct RecordUsageView: View {
                     )
                 }
             }
+            .onAppear {
+                // 重置加载计数器，以确保UI刷新时重新加载
+                loadedRecordsCount = min(20, store.printRecords.count)
+            }
         }
+    }
+    
+    private func loadMoreContent() {
+        // 增加加载的记录数量，每次增加20条
+        loadedRecordsCount += 20
     }
     
     private func resetForm() {
