@@ -277,7 +277,7 @@ struct AddMaterialView: View {
                     }
                     
                     if selectedBrand == "自定义" {
-                        TextField("输入品牌名", text: $customBrand)
+                        TextField("输入品牌名称", text: $customBrand)
                     }
                     
                     // 主分类选择
