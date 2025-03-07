@@ -374,6 +374,11 @@ class MaterialStore: ObservableObject {
         return printRecords.reduce(0) { $0 + $1.weightUsed }
     }
     
+    func getTotalConsumedWeight() -> Double {
+        // 计算所有材料的已消耗重量 (初始重量 - 剩余重量)
+        return materials.reduce(0) { $0 + ($1.initialWeight - $1.remainingWeight) }
+    }
+    
     func deleteMaterial(at indexSet: IndexSet) {
         materials.remove(atOffsets: indexSet)
         saveData()
@@ -473,6 +478,19 @@ class MaterialStore: ObservableObject {
         
         for record in printRecords {
             totalCost += getCostForRecord(record)
+        }
+        
+        return totalCost
+    }
+    
+    func getTotalConsumedCost() -> Double {
+        var totalCost: Double = 0
+        
+        for material in materials {
+            // 计算已消耗部分的成本
+            let consumedWeight = material.initialWeight - material.remainingWeight
+            let unitPrice = material.price / material.initialWeight
+            totalCost += unitPrice * consumedWeight
         }
         
         return totalCost

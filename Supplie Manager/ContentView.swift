@@ -45,21 +45,24 @@ struct StatisticsView: View {
                     HStack {
                         Text("累计使用耗材")
                         Spacer()
-                        Text("\(String(format: "%.2f", store.getTotalUsedWeight()))g")
-                            .foregroundColor(.secondary)
+                        Text(formatWeight(store.getTotalConsumedWeight()))
+                                .foregroundColor(.secondary)
                     }
                     
                     HStack {
                         Text("累计耗材价格")
                         Spacer()
-                        Text("¥\(String(format: "%.2f", store.getTotalUsedCost()))")
+                        Text("¥\(String(format: "%.2f", store.getTotalConsumedCost()))")
                             .foregroundColor(.secondary)
                     }
+                    
                     
                     HStack {
                         Text("平均耗材成本")
                         Spacer()
-                        Text("¥\(String(format: "%.2f", store.getTotalUsedWeight() > 0 ? store.getTotalUsedCost() / store.getTotalUsedWeight() : 0))/g")
+                        let consumedWeight = store.getTotalConsumedWeight()
+                        let avgCost = consumedWeight > 0 ? store.getTotalConsumedCost() / consumedWeight : 0
+                        Text("¥\(String(format: "%.2f", avgCost))/g")
                             .foregroundColor(.secondary)
                     }
                 }
@@ -123,6 +126,14 @@ struct StatisticsView: View {
                 }
             }
             .navigationTitle("耗材统计")
+        }
+    }
+    
+    private func formatWeight(_ weight: Double) -> String {
+        if weight >= 1000 {
+            return String(format: "%.3f kg", weight / 1000)
+        } else {
+            return String(format: "%.0f g", weight)
         }
     }
 }
