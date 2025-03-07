@@ -1,5 +1,11 @@
 import SwiftUI
 
+// 本地化日期
+private let dateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter
+}()
 struct ContentView: View {
     @StateObject private var store = MaterialStore()
     
@@ -216,7 +222,7 @@ struct MaterialRow: View {
                 Text(material.fullName)
                     .font(.headline)
                 
-                Text("购入日期: \(material.purchaseDate.formatted(date: .abbreviated, time: .omitted))")
+                Text("购入日期: \(dateFormatter.string(from: material.purchaseDate))")
                     .font(.caption)
                 
                 Text("价格: ¥\(String(format: "%.2f", material.price))")
@@ -350,7 +356,12 @@ struct AddMaterialView: View {
                     ))
                     
                     // 购入日期
-                    DatePicker("购入日期", selection: $purchaseDate, displayedComponents: .date)
+                    DatePicker(
+                        "购入日期",
+                        selection: $purchaseDate,
+                        displayedComponents: .date
+                    )
+                    .environment(\.locale, Locale(identifier: "zh_CN")) // 设置为中文日期格式
                     
                     // 价格
                     TextField("价格 (¥)", text: $price)
@@ -467,7 +478,7 @@ struct RecordUsageView: View {
                             HStack {
                                 Text("成本: ¥\(String(format: "%.2f", store.getCostForRecord(record)))")
                                 Spacer()
-                                Text("日期: \(record.date.formatted(date: .abbreviated, time: .shortened))")
+                                Text("日期: \(dateFormatter.string(from: record.date))")
                             }
                             .font(.caption)
                             .foregroundColor(.secondary)

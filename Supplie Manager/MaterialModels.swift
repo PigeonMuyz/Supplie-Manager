@@ -115,10 +115,59 @@ class MaterialStore: ObservableObject {
     @Published var materialPresets: [MaterialPreset] = []
     
     // 预设选项
-    @Published var brands: [String] = ["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture", "自定义"]
-    @Published var mainCategories: [String] = ["PLA","PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA", "自定义"]
-    @Published var subCategories: [String] = ["无", "Matte", "Basic", "Silk", "Fluor", "Metal", "Wood", "CF", "自定义"]
-
+    private let defaultBrands = ["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture"]
+    private let defaultMainCategories = ["PLA", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA"]
+    private let defaultSubCategories = ["无", "Matte", "Basic", "Silk", "Fluor", "Metal", "Wood", "CF"]
+    
+    // 自定义选项
+    @Published var customBrands: [String] = []
+    @Published var customMainCategories: [String] = []
+    @Published var customSubCategories: [String] = []
+    
+    // 计算属性：品牌列表
+    var brands: [String] {
+        var result = defaultBrands + customBrands
+        result.append("自定义")
+        return result
+    }
+    
+    // 计算属性：主分类列表
+    var mainCategories: [String] {
+        var result = defaultMainCategories + customMainCategories
+        result.append("自定义")
+        return result
+    }
+    
+    // 计算属性：子分类列表 - 从预设中动态获取所有唯一的子分类
+    var subCategories: [String] {
+        // 从预设中获取所有子分类并去重
+        var uniqueSubCategories = Set<String>(["无"])
+        
+        // 添加默认子分类
+        for category in defaultSubCategories {
+            uniqueSubCategories.insert(category)
+        }
+        
+        // 从预设中添加所有存在的子分类
+        for preset in materialPresets {
+            if !preset.subCategory.isEmpty && preset.subCategory != "无" {
+                uniqueSubCategories.insert(preset.subCategory)
+            }
+        }
+        
+        // 添加自定义子分类
+        for category in customSubCategories {
+            uniqueSubCategories.insert(category)
+        }
+        
+        // 转换为排序的数组并添加"自定义"选项
+        var result = Array(uniqueSubCategories).sorted()
+        if !result.contains("自定义") {
+            result.append("自定义")
+        }
+        
+        return result
+    }
     // 修改 MaterialStore 内的预设数据
     private let bambuPresets: [MaterialPreset] = [
         MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "白色", colorHex: "#FFFFFF"),
@@ -185,7 +234,7 @@ class MaterialStore: ObservableObject {
         MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "茶色", colorHex: "#C9A381"),
         MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "橄榄绿", colorHex: "#748C45"),
     ]
-
+    
     // eSun常见预设
     private let esunPresets: [MaterialPreset] = [
         MaterialPreset(brand: "eSUN", mainCategory: "PLA", subCategory: "Plus", colorName: "标准白", colorHex: "#FFFFFF"),
@@ -193,7 +242,7 @@ class MaterialStore: ObservableObject {
         MaterialPreset(brand: "eSUN", mainCategory: "ABS", subCategory: "Plus", colorName: "标准红", colorHex: "#FF0000"),
         MaterialPreset(brand: "eSUN", mainCategory: "TPU", subCategory: "Basic", colorName: "标准蓝", colorHex: "#0000FF")
     ]
-
+    
     // Polymaker常见预设
     private let polymakerPresets: [MaterialPreset] = [
         MaterialPreset(brand: "Polymaker", mainCategory: "PolyLite PLA", subCategory: "Basic", colorName: "标准白", colorHex: "#FFFFFF"),
@@ -206,7 +255,7 @@ class MaterialStore: ObservableObject {
         materialPresets.append(contentsOf: bambuPresets)
         materialPresets.append(contentsOf: esunPresets)
         materialPresets.append(contentsOf: polymakerPresets)
-        
+        loadAllDefaultPresets()
         loadData()
     }
     
@@ -234,28 +283,16 @@ class MaterialStore: ObservableObject {
         }
         
         // 加载自定义的品牌、分类等
-        if let customBrands = UserDefaults.standard.stringArray(forKey: "customBrands") {
-            for brand in customBrands {
-                if !brands.contains(brand) {
-                    brands.append(brand)
-                }
-            }
+        if let savedCustomBrands = UserDefaults.standard.stringArray(forKey: "customBrands") {
+            customBrands = savedCustomBrands
         }
         
-        if let customMainCategories = UserDefaults.standard.stringArray(forKey: "customMainCategories") {
-            for category in customMainCategories {
-                if !mainCategories.contains(category) {
-                    mainCategories.append(category)
-                }
-            }
+        if let savedCustomMainCategories = UserDefaults.standard.stringArray(forKey: "customMainCategories") {
+            customMainCategories = savedCustomMainCategories
         }
         
-        if let customSubCategories = UserDefaults.standard.stringArray(forKey: "customSubCategories") {
-            for category in customSubCategories {
-                if !subCategories.contains(category) {
-                    subCategories.append(category)
-                }
-            }
+        if let savedCustomSubCategories = UserDefaults.standard.stringArray(forKey: "customSubCategories") {
+            customSubCategories = savedCustomSubCategories
         }
     }
     
@@ -281,33 +318,28 @@ class MaterialStore: ObservableObject {
         }
         
         // 保存自定义的品牌和分类
-        let customBrands = brands.filter { $0 != "自定义" && !["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture"].contains($0) }
         UserDefaults.standard.set(customBrands, forKey: "customBrands")
-        
-        let customMainCategories = mainCategories.filter { $0 != "自定义" && !["PLA", "PLA+", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA"].contains($0) }
         UserDefaults.standard.set(customMainCategories, forKey: "customMainCategories")
-        
-        let customSubCategories = subCategories.filter { $0 != "自定义" && $0 != "无" && !["哑光", "亮面", "丝绸", "荧光", "金属质感", "木质感", "碳纤维"].contains($0) }
         UserDefaults.standard.set(customSubCategories, forKey: "customSubCategories")
     }
     
     func addCustomBrand(_ brand: String) {
-        if !brand.isEmpty && !brands.contains(brand) {
-            brands.insert(brand, at: brands.count - 1)
+        if !brand.isEmpty && !customBrands.contains(brand) {
+            customBrands.append(brand)
             saveData()
         }
     }
     
     func addCustomMainCategory(_ category: String) {
-        if !category.isEmpty && !mainCategories.contains(category) {
-            mainCategories.insert(category, at: mainCategories.count - 1)
+        if !category.isEmpty && !customMainCategories.contains(category) {
+            customMainCategories.append(category)
             saveData()
         }
     }
     
     func addCustomSubCategory(_ category: String) {
-        if !category.isEmpty && !subCategories.contains(category) {
-            subCategories.insert(category, at: subCategories.count - 1)
+        if !category.isEmpty && !customSubCategories.contains(category) {
+            customSubCategories.append(category)
             saveData()
         }
     }
@@ -346,12 +378,12 @@ class MaterialStore: ObservableObject {
         materials.remove(atOffsets: indexSet)
         saveData()
     }
-
+    
     func deleteMaterial(id: UUID) {
         materials.removeAll(where: { $0.id == id })
         saveData()
     }
-
+    
     func deletePrintRecord(at indexSet: IndexSet) {
         // 处理每条要删除的记录
         for index in indexSet {
@@ -372,7 +404,7 @@ class MaterialStore: ObservableObject {
         printRecords.remove(atOffsets: indexSet)
         saveData()
     }
-
+    
     func deletePrintRecord(id: UUID) {
         // 找到要删除的记录
         if let recordToDelete = printRecords.first(where: { $0.id == id }) {
@@ -391,7 +423,7 @@ class MaterialStore: ObservableObject {
             saveData()
         }
     }
-
+    
     func deletePreset(at indexSet: IndexSet) {
         // 过滤出自定义预设
         let customPresets = materialPresets.filter { preset in
@@ -414,26 +446,28 @@ class MaterialStore: ObservableObject {
         
         saveData()
     }
+    
     func removeCustomBrand(_ brand: String) {
-        if let index = brands.firstIndex(of: brand) {
-            brands.remove(at: index)
+        if let index = customBrands.firstIndex(of: brand) {
+            customBrands.remove(at: index)
             saveData()
         }
     }
-
+    
     func removeCustomMainCategory(_ category: String) {
-        if let index = mainCategories.firstIndex(of: category) {
-            mainCategories.remove(at: index)
+        if let index = customMainCategories.firstIndex(of: category) {
+            customMainCategories.remove(at: index)
             saveData()
         }
     }
-
+    
     func removeCustomSubCategory(_ category: String) {
-        if let index = subCategories.firstIndex(of: category) {
-            subCategories.remove(at: index)
+        if let index = customSubCategories.firstIndex(of: category) {
+            customSubCategories.remove(at: index)
             saveData()
         }
     }
+    
     func getTotalUsedCost() -> Double {
         var totalCost: Double = 0
         
@@ -443,7 +477,7 @@ class MaterialStore: ObservableObject {
         
         return totalCost
     }
-
+    
     func getCostForRecord(_ record: PrintRecord) -> Double {
         // 找到对应的材料
         if let material = materials.first(where: { $0.id == record.materialId }) {
@@ -471,6 +505,7 @@ class MaterialStore: ObservableObject {
             return 0
         }
     }
+    
     func markMaterialAsEmpty(id: UUID) {
         if let index = materials.firstIndex(where: { $0.id == id }) {
             // 将剩余量设为 0
