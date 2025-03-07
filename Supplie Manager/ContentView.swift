@@ -139,14 +139,14 @@ struct MyMaterialsView: View {
                                     Button(role: .destructive) {
                                         store.deleteMaterial(id: material.id)
                                     } label: {
-                                        Label("删除", systemImage: "trash")
+//                                        Label("删除", systemImage: "trash")
                                     }
                                     
                                     Button {
-                                        // 将耗材标记为已用完
+                                        // 手动标记耗材已经用尽
                                         store.markMaterialAsEmpty(id: material.id)
                                     } label: {
-                                        Label("标记为用完", systemImage: "checkmark.circle")
+//                                        Label("标记为用完", systemImage: "checkmark.circle")
                                     }
                                     .tint(.blue)
                                 }
