@@ -8,10 +8,18 @@ private let dateFormatter: DateFormatter = {
 }()
 struct ContentView: View {
     @StateObject private var store = MaterialStore()
+    @StateObject private var authManager = BambuAuthManager()
+    @StateObject private var printerManager: BambuPrinterManager
+    
+    init() {
+        let auth = BambuAuthManager()
+        self._authManager = StateObject(wrappedValue: auth)
+        self._printerManager = StateObject(wrappedValue: BambuPrinterManager(authManager: auth))
+    }
     
     var body: some View {
         TabView {
-            StatisticsView(store: store)
+            StatisticsView(store: store, authManager: authManager, printerManager: printerManager)
                 .tabItem {
                     Label("数据统计", systemImage: "chart.bar.fill")
                 }
@@ -31,16 +39,32 @@ struct ContentView: View {
                     Label("耗材预设", systemImage: "list.bullet")
                 }
         }
+        .onAppear {
+            // 如果已登录，自动获取打印机状态
+            if authManager.isLoggedIn {
+                Task {
+                    await printerManager.fetchPrinters()
+                }
+            }
+        }
     }
 }
 
 // MARK: 统计视图
 struct StatisticsView: View {
     @ObservedObject var store: MaterialStore
+    @ObservedObject var authManager: BambuAuthManager
+    @ObservedObject var printerManager: BambuPrinterManager
+    @State private var showLoginSheet = false
     
     var body: some View {
         NavigationView {
             List {
+                // 打印机状态区域 - 仅在登录后显示
+                if authManager.isLoggedIn {
+                    BambuPrinterStatusView(printerManager: printerManager)
+                }
+                
                 Section(header: Text("总用量统计")) {
                     HStack {
                         Text("累计使用耗材")
@@ -50,12 +74,20 @@ struct StatisticsView: View {
                     }
                     
                     HStack {
-                        Text("累计耗材价格")
+                        Text("累计消耗金额")
                         Spacer()
                         Text("¥\(String(format: "%.2f", store.getTotalConsumedCost()))")
                             .foregroundColor(.secondary)
                     }
                     
+                    if !printerManager.recentTasks.isEmpty {
+                        HStack {
+                            Text("累计打印次数")
+                            Spacer()
+                            Text("\(printerManager.totalPrintCount)")
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     
                     HStack {
                         Text("平均耗材成本")
@@ -136,6 +168,26 @@ struct StatisticsView: View {
                 }
             }
             .navigationTitle("数据统计")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showLoginSheet = true
+                    }) {
+                        Text(authManager.isLoggedIn ? "Bambu账号" : "登录")
+                    }
+                }
+            }
+            .sheet(isPresented: $showLoginSheet) {
+                BambuLoginView(authManager: authManager)
+                    .onDisappear {
+                        // 登录成功后，自动获取打印机状态
+                        if authManager.isLoggedIn {
+                            Task {
+                                await printerManager.fetchPrinters()
+                            }
+                        }
+                    }
+            }
         }
     }
     
