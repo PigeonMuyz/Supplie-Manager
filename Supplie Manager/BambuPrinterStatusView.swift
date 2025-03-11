@@ -191,17 +191,6 @@ struct PrintHistoryView: View {
                         dismiss()
                     }
                 }
-                
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("刷新") {
-                        Task {
-                            isLoading = true
-                            await printerManager.fetchRecentTasks()
-                            isLoading = false
-                        }
-                    }
-                    .disabled(isLoading)
-                }
             }
             .onAppear {
                 // 加载打印任务历史
