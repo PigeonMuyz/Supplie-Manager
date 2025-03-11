@@ -63,6 +63,7 @@ struct StatisticsView: View {
                 // 打印机状态区域 - 仅在登录后显示
                 if authManager.isLoggedIn {
                     BambuPrinterStatusView(printerManager: printerManager)
+                        .environmentObject(store)
                 }
                 
                 Section(header: Text("总用量统计")) {
