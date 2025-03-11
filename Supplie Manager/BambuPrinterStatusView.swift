@@ -231,7 +231,13 @@ struct PrintHistoryView: View {
 struct PrintTaskRow: View {
     let task: PrintTaskInfo
     @State private var showAddToStatsSheet = false
+    @State private var showInvalidLinkAlert = false // 添加警告弹窗控制状态
     @EnvironmentObject var store: MaterialStore
+    
+    // 检查链接是否是有效的 Makerworld 链接
+    private func isValidMakerWorldLink(_ link: String) -> Bool {
+        return link.contains("makerworld.com") || link.contains("makerworld.com.cn")
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -281,6 +287,12 @@ struct PrintTaskRow: View {
         .sheet(isPresented: $showAddToStatsSheet) {
             AddPrintTaskToStatsView(task: task, isPresented: $showAddToStatsSheet)
                 .environmentObject(store)
+        }
+        // 添加无效链接警告弹窗
+        .alert("无效链接", isPresented: $showInvalidLinkAlert) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            Text("暂无有效的 Makerworld 链接")
         }
     }
 }

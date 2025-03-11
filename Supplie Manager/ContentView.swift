@@ -534,6 +534,7 @@ struct RecordUsageView: View {
     @State private var weightUsed = ""
     @State private var searchText = ""
     @State private var loadedRecordsCount = 20 // 初始加载记录数量
+    @State private var showInvalidLinkAlert = false // 添加警告弹窗控制状态
     
     // 只获取有剩余的材料
     private var availableMaterials: [Material] {
@@ -560,6 +561,11 @@ struct RecordUsageView: View {
         return Array(filteredAndSortedRecords.prefix(min(loadedRecordsCount, filteredAndSortedRecords.count)))
     }
     
+    // 检查链接是否是有效的 Makerworld 链接
+    private func isValidMakerWorldLink(_ link: String) -> Bool {
+        return link.contains("makerworld.com") || link.contains("makerworld.com.cn")
+    }
+    
     var body: some View {
         NavigationView {
             VStack {
@@ -568,14 +574,10 @@ struct RecordUsageView: View {
                         VStack(alignment: .leading) {
                             Text(record.modelName)
                                 .font(.headline)
-                            
-                            if !record.makerWorldLink.isEmpty {
-                                Link("Makerworld链接", destination: URL(string: record.makerWorldLink) ?? URL(string: "https://makerworld.com")!)
-                                    .font(.caption)
-                            }
-                            
+                                
                             HStack {
                                 Text("使用材料: \(record.materialName)")
+                                    .font(.caption)
                                 Spacer()
                                 Text("\(String(format: "%.2f", record.weightUsed))g")
                             }
@@ -588,6 +590,18 @@ struct RecordUsageView: View {
                             }
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        }
+                        .contentShape(Rectangle()) // 确保整个区域可点击
+                        .onTapGesture {
+                            if !record.makerWorldLink.isEmpty {
+                                if isValidMakerWorldLink(record.makerWorldLink) {
+                                    if let url = URL(string: record.makerWorldLink) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                } else {
+                                    showInvalidLinkAlert = true
+                                }
+                            }
                         }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -619,6 +633,12 @@ struct RecordUsageView: View {
                 }
                 .listStyle(InsetGroupedListStyle())
                 .searchable(text: $searchText, prompt: "搜索模型名称、材料...")
+                // 添加无效链接警告弹窗
+                .alert("无效链接", isPresented: $showInvalidLinkAlert) {
+                    Button("确定", role: .cancel) { }
+                } message: {
+                    Text("暂无有效的 Makerworld 链接")
+                }
             }
             .navigationTitle("打印记录")
             .toolbar {
