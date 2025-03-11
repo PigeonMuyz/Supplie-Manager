@@ -83,8 +83,10 @@ struct PrinterStatusCard: View {
                     
                     HStack {
                         Text("状态:")
-                        Text(printer.statusDescription)
-                            .foregroundColor(statusColor(for: printer.print_status))
+                        Text(printer.detailedStatus.description)
+                            .foregroundColor(printer.statusColor)
+                        Image(systemName: printer.statusIcon)
+                            .foregroundColor(printer.statusColor)
                     }
                     .font(.caption)
                 }

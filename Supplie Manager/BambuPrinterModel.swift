@@ -15,20 +15,7 @@ struct PrinterInfo: Codable, Identifiable {
     
     // 简化的打印状态描述
     var statusDescription: String {
-        switch print_status {
-        case "IDLE":
-            return "空闲"
-        case "RUNNING":
-            return "打印中"
-        case "PAUSE":
-            return "暂停"
-        case "SUCCESS":
-            return "完成"
-        case "FAILED":
-            return "出错"
-        default:
-            return "未知状态"
-        }
+        return detailedStatus.description
     }
     
     // 打印机型号显示
