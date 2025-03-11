@@ -3,8 +3,11 @@ import SwiftUI
 struct BambuPrinterStatusView: View {
     @ObservedObject var printerManager: BambuPrinterManager
     @EnvironmentObject var store: MaterialStore
-    @State private var isRefreshing = false
     @State private var showPrintHistory = false
+    
+    // 添加定时器相关状态
+    @State private var timer: Timer? = nil
+    private let refreshInterval: TimeInterval = 20 // 60秒刷新一次
     
     var body: some View {
         Section(header: Text("打印机状态")) {
@@ -33,31 +36,44 @@ struct BambuPrinterStatusView: View {
                             showPrintHistory = true
                         }
                 }
-                
-                Button(action: {
-                    isRefreshing = true
-                    Task {
-                        await printerManager.fetchPrinters()
-                        isRefreshing = false
-                    }
-                }) {
-                    HStack {
-                        Spacer()
-                        if isRefreshing {
-                            ProgressView()
-                                .padding(.trailing, 5)
-                        }
-                        Text("刷新状态")
-                        Spacer()
-                    }
-                }
-                .disabled(isRefreshing || printerManager.isLoading)
             }
         }
         .sheet(isPresented: $showPrintHistory) {
             PrintHistoryView(printerManager: printerManager)
                 .environmentObject(store)
         }
+        .onAppear {
+            // 启动定时器进行自动刷新
+            startAutoRefresh()
+        }
+        .onDisappear {
+            // 停止定时器
+            stopAutoRefresh()
+        }
+    }
+    
+    // 启动自动刷新
+    private func startAutoRefresh() {
+        // 确保先停止之前可能存在的定时器
+        stopAutoRefresh()
+        
+        // 创建并启动新的定时器
+        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { _ in
+            Task {
+                await printerManager.fetchPrinters()
+            }
+        }
+        
+        // 立即执行一次更新
+        Task {
+            await printerManager.fetchPrinters()
+        }
+    }
+    
+    // 停止自动刷新
+    private func stopAutoRefresh() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 
