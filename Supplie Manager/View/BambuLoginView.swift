@@ -1,5 +1,8 @@
 import SwiftUI
 
+//
+// 拓竹账号登录视图
+//
 struct BambuLoginView: View {
     @ObservedObject var authManager: BambuAuthManager
     @State private var account: String = ""

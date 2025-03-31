@@ -1,5 +1,8 @@
 import SwiftUI
 
+//
+// 数据统计页-打印机状态视图
+//
 struct BambuPrinterStatusView: View {
     @ObservedObject var printerManager: BambuPrinterManager
     @EnvironmentObject var store: MaterialStore
@@ -77,6 +80,9 @@ struct BambuPrinterStatusView: View {
     }
 }
 
+//
+// 打印机状态卡片组件
+//
 struct PrinterStatusCard: View {
     let printer: PrinterInfo
     
