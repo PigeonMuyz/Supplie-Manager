@@ -6,6 +6,7 @@ private let dateFormatter: DateFormatter = {
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter
 }()
+
 struct ContentView: View {
     @StateObject private var store = MaterialStore()
     @StateObject private var authManager = BambuAuthManager()
@@ -47,6 +48,10 @@ struct ContentView: View {
                 }
             }
         }
+        .onDisappear {
+            // 确保在APP退出时断开所有MQTT连接
+            printerManager.disconnectAllMQTT()
+        }
     }
 }
 
@@ -56,6 +61,7 @@ struct StatisticsView: View {
     @ObservedObject var authManager: BambuAuthManager
     @ObservedObject var printerManager: BambuPrinterManager
     @State private var showLoginSheet = false
+    @State private var mqttMessages: [String] = []
     
     var body: some View {
         NavigationView {
@@ -97,6 +103,60 @@ struct StatisticsView: View {
                         let avgCost = consumedWeight > 0 ? store.getTotalConsumedCost() / consumedWeight : 0
                         Text("¥\(String(format: "%.2f", avgCost))/g")
                             .foregroundColor(.secondary)
+                    }
+                }
+                
+                // 显示正在进行的打印任务
+                if let activePrinter = printerManager.printers.first(where: {
+                    guard let mqttClient = $0.mqttClient else { return false }
+                    return mqttClient.isConnected && mqttClient.getPrintStatus().category == .active
+                }) {
+                    if let mqttClient = activePrinter.mqttClient {
+                        Section(header: Text("当前打印任务")) {
+                            HStack {
+                                Text("打印机")
+                                Spacer()
+                                Text(activePrinter.name)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("文件")
+                                Spacer()
+                                Text(mqttClient.getFileName())
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("进度")
+                                Spacer()
+                                Text("\(Int(mqttClient.getPrintProgress() * 100))%")
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // 进度条
+                            ProgressView(value: mqttClient.getPrintProgress())
+                                .progressViewStyle(LinearProgressViewStyle())
+                                .padding(.vertical, 4)
+                            
+                            HStack {
+                                Text("层")
+                                Spacer()
+                                Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // 剩余时间
+                            let remainingTime = mqttClient.getRemainingTime()
+                            let hours = remainingTime / 3600
+                            let minutes = (remainingTime % 3600) / 60
+                            HStack {
+                                Text("剩余时间")
+                                Spacer()
+                                Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 

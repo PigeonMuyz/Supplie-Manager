@@ -1,8 +1,5 @@
 import SwiftUI
 
-//
-// 数据统计页-打印机状态视图
-//
 struct BambuPrinterStatusView: View {
     @ObservedObject var printerManager: BambuPrinterManager
     @EnvironmentObject var store: MaterialStore
@@ -10,7 +7,7 @@ struct BambuPrinterStatusView: View {
     
     // 添加定时器相关状态
     @State private var timer: Timer? = nil
-    private let refreshInterval: TimeInterval = 20 // 60秒刷新一次
+    private let refreshInterval: TimeInterval = 20 // 20秒刷新一次API数据
     
     var body: some View {
         Section(header: Text("打印机状态")) {
@@ -24,11 +21,11 @@ struct BambuPrinterStatusView: View {
                 .padding(.vertical, 10)
             } else if let errorMessage = printerManager.errorMessage {
                 Text(errorMessage)
-                    .foregroundColor(.red)
+                    .foregroundColor(Color.red)
                     .font(.caption)
             } else if printerManager.printers.isEmpty {
                 Text("未找到打印机设备")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondary)
             } else {
                 // 显示打印机列表
                 ForEach(printerManager.printers) { printer in
@@ -77,12 +74,12 @@ struct BambuPrinterStatusView: View {
     private func stopAutoRefresh() {
         timer?.invalidate()
         timer = nil
+        
+        // 断开所有MQTT连接
+        printerManager.disconnectAllMQTT()
     }
 }
 
-//
-// 打印机状态卡片组件
-//
 struct PrinterStatusCard: View {
     let printer: PrinterInfo
     
@@ -95,53 +92,122 @@ struct PrinterStatusCard: View {
                 StatusBadge(status: printer.online ? "在线" : "离线", isOnline: printer.online)
             }
             
-            // 打印机状态详情 - 简化版本
+            // 打印机状态详情 - 实时数据版本
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Text("型号:")
                         Text(printer.modelDescription)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.secondary)
                     }
                     .font(.caption)
                     
-                    HStack {
-                        Text("状态:")
-                        Text(printer.detailedStatus.description)
-                            .foregroundColor(printer.statusColor)
-                        Image(systemName: printer.statusIcon)
-                            .foregroundColor(printer.statusColor)
+                    // 从MQTT获取状态
+                    if let mqttClient = printer.mqttClient, mqttClient.isConnected {
+                        let status = mqttClient.getPrintStatus()
+                        HStack {
+                            Text("状态:")
+                            Text(status.description)
+                                .foregroundColor(status.category.color)
+                            Image(systemName: status.category.iconName)
+                                .foregroundColor(status.category.color)
+                        }
+                        .font(.caption)
+                        
+                        // 如果是打印中，显示进度信息
+                        if status.category == .active {
+                            HStack {
+                                Text("进度:")
+                                Text("\(Int(mqttClient.getPrintProgress() * 100))%")
+                                    .foregroundColor(Color.blue)
+                            }
+                            .font(.caption)
+                            
+                            HStack {
+                                Text("层:")
+                                Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
+                                    .foregroundColor(Color.blue)
+                            }
+                            .font(.caption)
+                            
+                            // 格式化剩余时间
+                            let remainingTime = mqttClient.getRemainingTime()
+                            let hours = remainingTime / 3600
+                            let minutes = (remainingTime % 3600) / 60
+                            HStack {
+                                Text("剩余时间:")
+                                Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
+                                    .foregroundColor(Color.blue)
+                            }
+                            .font(.caption)
+                        }
+                        
+                        // 显示温度信息
+                        HStack {
+                            Text("温度:")
+                            Text("喷嘴 \(Int(mqttClient.getNozzleTemperature()))°C/\(Int(mqttClient.getNozzleTargetTemperature()))°C")
+                                .foregroundColor(Color.orange)
+                            Text("热床 \(Int(mqttClient.getBedTemperature()))°C/\(Int(mqttClient.getBedTargetTemperature()))°C")
+                                .foregroundColor(Color.orange)
+                        }
+                        .font(.caption)
+                        
+                        // 显示MQTT状态信息
+                        if let message = mqttClient.lastMessage {
+                            HStack {
+                                Image(systemName: "cloud.fill")
+                                    .foregroundColor(Color.green)
+                                Text("Cloud实时连接")
+                                    .foregroundColor(Color.green)
+                            }
+                            .font(.caption)
+                        }
+                    } else {
+                        // 从API获取状态（备用方案）
+                        HStack {
+                            Text("状态:")
+                            Text(printer.detailedStatus.description)
+                                .foregroundColor(printer.statusColor)
+                            Image(systemName: printer.statusIcon)
+                                .foregroundColor(printer.statusColor)
+                        }
+                        .font(.caption)
+                        
+                        // 如果MQTT未连接，显示连接状态
+                        if let mqttClient = printer.mqttClient {
+                            HStack {
+                                Image(systemName: "cloud")
+                                    .foregroundColor(Color.orange)
+                                if let error = mqttClient.lastError {
+                                    Text(error)
+                                        .foregroundColor(Color.orange)
+                                } else {
+                                    Text("连接中...")
+                                        .foregroundColor(Color.orange)
+                                }
+                            }
+                            .font(.caption)
+                        } else {
+                            HStack {
+                                Image(systemName: "cloud.slash")
+                                    .foregroundColor(Color.gray)
+                                Text("未连接Cloud")
+                                    .foregroundColor(Color.gray)
+                            }
+                            .font(.caption)
+                        }
                     }
-                    .font(.caption)
                 }
                 
                 Spacer()
                 
                 // 添加一个小图标表示可以点击查看更多
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondary)
                     .font(.caption)
             }
         }
         .padding(.vertical, 4)
-    }
-    
-    // 根据状态返回颜色
-    private func statusColor(for status: String) -> Color {
-        switch status {
-        case "IDLE":
-            return .secondary // 空闲
-        case "RUNNING":
-            return .blue // 打印中
-        case "PAUSE":
-            return .orange // 暂停
-        case "SUCCESS":
-            return .green // 完成
-        case "FAILED":
-            return .red // 错误
-        default:
-            return .secondary
-        }
     }
 }
 
@@ -156,7 +222,7 @@ struct StatusBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(isOnline ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
-            .foregroundColor(isOnline ? .green : .gray)
+            .foregroundColor(isOnline ? Color.green : Color.gray)
             .cornerRadius(8)
     }
 }
@@ -168,41 +234,139 @@ struct PrintHistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var loadedTasksCount = 20 // 初始加载记录数量
     @State private var isLoading = false
+    @State private var selectedPrinterId: String? = nil
     
     var body: some View {
         NavigationView {
-            List {
-                if printerManager.recentTasks.isEmpty {
-                    if isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView("正在加载打印记录...")
-                            Spacer()
+            VStack {
+                if !printerManager.printers.isEmpty {
+                    // 打印机选择器 - 修改为使用ID而不是整个PrinterInfo对象
+                    Picker("选择打印机", selection: $selectedPrinterId) {
+                        Text("全部打印机").tag(nil as String?)
+                        ForEach(printerManager.printers) { printer in
+                            Text(printer.name).tag(printer.id as String?)
                         }
-                    } else {
-                        Text("暂无打印记录")
-                            .foregroundColor(.secondary)
                     }
-                } else {
-                    ForEach(Array(printerManager.recentTasks.prefix(loadedTasksCount))) { task in
-                        PrintTaskRow(task: task)
-                            .environmentObject(store)
-                            .onAppear {
-                                // 如果显示到列表最后几个项目，加载更多数据
-                                if task.id == printerManager.recentTasks.prefix(loadedTasksCount).last?.id &&
-                                   loadedTasksCount < printerManager.recentTasks.count {
-                                    loadMoreTasks()
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                }
+                
+                List {
+                    // 实时状态显示区域 - 使用ID查找打印机
+                    if let selectedId = selectedPrinterId,
+                       let printer = printerManager.printers.first(where: { $0.id == selectedId }),
+                       let mqttClient = printer.mqttClient,
+                       mqttClient.isConnected {
+                        
+                        Section(header: Text("实时信息")) {
+                            // 打印机状态
+                            let status = mqttClient.getPrintStatus()
+                            HStack {
+                                Text("打印状态")
+                                Spacer()
+                                Text(status.description)
+                                    .foregroundColor(status.category.color)
+                            }
+                            
+                            // 如果正在打印，显示详细信息
+                            if status.category == .active || status.category == .preparing {
+                                // 当前打印文件
+                                HStack {
+                                    Text("打印文件")
+                                    Spacer()
+                                    Text(mqttClient.getFileName())
+                                        .foregroundColor(Color.secondary)
+                                }
+                                
+                                // 打印进度
+                                HStack {
+                                    Text("打印进度")
+                                    Spacer()
+                                    Text("\(Int(mqttClient.getPrintProgress() * 100))%")
+                                        .foregroundColor(Color.secondary)
+                                }
+                                
+                                // 层进度
+                                HStack {
+                                    Text("层进度")
+                                    Spacer()
+                                    Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
+                                        .foregroundColor(Color.secondary)
+                                }
+                                
+                                // 剩余时间
+                                let remainingTime = mqttClient.getRemainingTime()
+                                let hours = remainingTime / 3600
+                                let minutes = (remainingTime % 3600) / 60
+                                HStack {
+                                    Text("剩余时间")
+                                    Spacer()
+                                    Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
+                                        .foregroundColor(Color.secondary)
+                                }
+                                
+                                // 温度信息
+                                HStack {
+                                    Text("喷嘴温度")
+                                    Spacer()
+                                    Text("\(Int(mqttClient.getNozzleTemperature()))°C / \(Int(mqttClient.getNozzleTargetTemperature()))°C")
+                                        .foregroundColor(Color.secondary)
+                                }
+                                
+                                HStack {
+                                    Text("热床温度")
+                                    Spacer()
+                                    Text("\(Int(mqttClient.getBedTemperature()))°C / \(Int(mqttClient.getBedTargetTemperature()))°C")
+                                        .foregroundColor(Color.secondary)
                                 }
                             }
+                        }
                     }
                     
-                    // 如果还有更多内容可以加载，显示加载按钮
-                    if loadedTasksCount < printerManager.recentTasks.count {
-                        Button("加载更多...") {
-                            loadMoreTasks()
+                    Section(header: Text("打印历史")) {
+                        if printerManager.recentTasks.isEmpty {
+                            if isLoading {
+                                HStack {
+                                    Spacer()
+                                    ProgressView("正在加载打印记录...")
+                                    Spacer()
+                                }
+                            } else {
+                                Text("暂无打印记录")
+                                    .foregroundColor(Color.secondary)
+                            }
+                        } else {
+                            // 过滤选定打印机的任务
+                            let filteredTasks = selectedPrinterId != nil
+                                ? printerManager.recentTasks.filter { $0.deviceId == selectedPrinterId }
+                                : printerManager.recentTasks
+                            
+                            if filteredTasks.isEmpty {
+                                Text("所选打印机暂无打印记录")
+                                    .foregroundColor(Color.secondary)
+                            } else {
+                                ForEach(Array(filteredTasks.prefix(loadedTasksCount))) { task in
+                                    PrintTaskRow(task: task)
+                                        .environmentObject(store)
+                                        .onAppear {
+                                            // 如果显示到列表最后几个项目，加载更多数据
+                                            if task.id == filteredTasks.prefix(loadedTasksCount).last?.id &&
+                                                loadedTasksCount < filteredTasks.count {
+                                                loadMoreTasks()
+                                            }
+                                        }
+                                }
+                                
+                                // 如果还有更多内容可以加载，显示加载按钮
+                                if loadedTasksCount < filteredTasks.count {
+                                    Button("加载更多...") {
+                                        loadMoreTasks()
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 8)
+                                }
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 8)
                     }
                 }
             }
@@ -237,13 +401,7 @@ struct PrintHistoryView: View {
 struct PrintTaskRow: View {
     let task: PrintTaskInfo
     @State private var showAddToStatsSheet = false
-    @State private var showInvalidLinkAlert = false // 添加警告弹窗控制状态
     @EnvironmentObject var store: MaterialStore
-    
-    // 检查链接是否是有效的 Makerworld 链接
-    private func isValidMakerWorldLink(_ link: String) -> Bool {
-        return link.contains("makerworld.com") || link.contains("makerworld.com.cn")
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -256,7 +414,7 @@ struct PrintTaskRow: View {
                 Text("型号: \(task.deviceModel)")
             }
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(Color.secondary)
             
             HStack {
                 if let firstMaterial = task.amsDetailMapping.first {
@@ -266,7 +424,7 @@ struct PrintTaskRow: View {
                 Text("用量: \(String(format: "%.2f", task.weight))g")
             }
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(Color.secondary)
             
             HStack {
                 Text("开始: \(task.formattedStartTime)")
@@ -274,7 +432,7 @@ struct PrintTaskRow: View {
                 Text("用时: \(task.formattedPrintTime)")
             }
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(Color.secondary)
             
             // 添加"添加到统计"按钮
             Button(action: {
@@ -285,7 +443,7 @@ struct PrintTaskRow: View {
                     Text("添加到耗材统计")
                 }
                 .font(.caption)
-                .foregroundColor(.blue)
+                .foregroundColor(Color.blue)
             }
             .padding(.top, 4)
         }
@@ -293,147 +451,6 @@ struct PrintTaskRow: View {
         .sheet(isPresented: $showAddToStatsSheet) {
             AddPrintTaskToStatsView(task: task, isPresented: $showAddToStatsSheet)
                 .environmentObject(store)
-        }
-        // 添加无效链接警告弹窗
-        .alert("无效链接", isPresented: $showInvalidLinkAlert) {
-            Button("确定", role: .cancel) { }
-        } message: {
-            Text("暂无有效的 Makerworld 链接")
-        }
-    }
-}
-
-// 将打印任务添加到统计的视图
-struct AddPrintTaskToStatsView: View {
-    let task: PrintTaskInfo
-    @Binding var isPresented: Bool
-    @EnvironmentObject var store: MaterialStore
-    
-    @State private var selectedMaterialId: UUID?
-    @State private var weightUsed: String
-    @State private var modelName: String
-    @State private var makerWorldLink: String = ""
-    
-    init(task: PrintTaskInfo, isPresented: Binding<Bool>) {
-        self.task = task
-        self._isPresented = isPresented
-        // 初始化状态变量
-        self._weightUsed = State(initialValue: String(format: "%.2f", task.weight))
-        self._modelName = State(initialValue: task.title)
-    }
-    
-    // 只获取有剩余的材料
-    private var availableMaterials: [Material] {
-        store.materials.filter { $0.remainingWeight > 0 }
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("打印模型信息")) {
-                    TextField("模型名称", text: $modelName)
-                    TextField("Makerworld链接", text: $makerWorldLink)
-                }
-                
-                Section(header: Text("耗材信息")) {
-                    if availableMaterials.isEmpty {
-                        Text("没有可用耗材，请先添加耗材")
-                            .foregroundColor(.secondary)
-                    } else {
-                        Picker("选择材料", selection: $selectedMaterialId) {
-                            Text("请选择").tag(nil as UUID?)
-                            ForEach(availableMaterials) { material in
-                                HStack {
-                                    Circle()
-                                        .fill(material.color)
-                                        .frame(width: 12, height: 12)
-                                    Text(material.fullName)
-                                }.tag(material.id as UUID?)
-                            }
-                        }
-                        
-                        if let materialId = selectedMaterialId,
-                           let material = availableMaterials.first(where: { $0.id == materialId }) {
-                            Text("剩余: \(String(format: "%.2f", material.remainingWeight))g")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text("单价: ¥\(String(format: "%.2f", material.price / material.initialWeight))/g")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        TextField("用量(g)", text: $weightUsed)
-                            .keyboardType(.decimalPad)
-                        
-                        if let materialId = selectedMaterialId,
-                           let material = availableMaterials.first(where: { $0.id == materialId }),
-                           let weight = Double(weightUsed), weight > 0 {
-                            Text("预计成本: ¥\(String(format: "%.2f", (material.price / material.initialWeight) * weight))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            // 添加警告，如果用量超过剩余量
-                            if weight > material.remainingWeight {
-                                Text("警告：用量超过剩余量！最大可用：\(String(format: "%.2f", material.remainingWeight))g")
-                                    .foregroundColor(.red)
-                                    .font(.caption)
-                            }
-                        }
-                    }
-                }
-                
-                Section(header: Text("打印任务信息")) {
-                    HStack {
-                        Text("设备名称")
-                        Spacer()
-                        Text(task.deviceName)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("打印时间")
-                        Spacer()
-                        Text(task.formattedStartTime)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("用时")
-                        Spacer()
-                        Text(task.formattedPrintTime)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("添加到耗材统计")
-            .navigationBarItems(
-                leading: Button("取消") {
-                    isPresented = false
-                },
-                trailing: Button("保存") {
-                    if !modelName.isEmpty && selectedMaterialId != nil && !weightUsed.isEmpty,
-                       let weight = Double(weightUsed),
-                       let materialId = selectedMaterialId,
-                       let material = availableMaterials.first(where: { $0.id == materialId }) {
-                        // 限制用量不超过剩余量
-                        let actualWeight = min(weight, material.remainingWeight)
-                        
-                        let newRecord = PrintRecord(
-                            modelName: modelName,
-                            makerWorldLink: makerWorldLink,
-                            materialId: materialId,
-                            materialName: material.fullName,
-                            weightUsed: actualWeight,
-                            date: Date()
-                        )
-                        store.addPrintRecord(newRecord)
-                        isPresented = false
-                    }
-                }
-                .disabled(selectedMaterialId == nil || modelName.isEmpty || weightUsed.isEmpty ||
-                          (selectedMaterialId != nil && Double(weightUsed) ?? 0 <= 0))
-            )
         }
     }
 }

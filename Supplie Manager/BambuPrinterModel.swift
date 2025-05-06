@@ -1,17 +1,40 @@
 import Foundation
+import SwiftUI
 
 // 打印机基本信息模型
-struct PrinterInfo: Codable, Identifiable {
-    var id: String { dev_id }
-    var dev_id: String
-    var name: String
-    var online: Bool
-    var print_status: String
-    var dev_model_name: String
-    var dev_product_name: String
-    var dev_access_code: String
-    var nozzle_diameter: Double
-    var dev_structure: String
+struct PrinterInfo: Identifiable, Hashable {
+    // 基本信息，由API返回
+    struct BasicInfo: Codable, Hashable {
+        var dev_id: String
+        var name: String
+        var online: Bool
+        var print_status: String
+        var dev_model_name: String
+        var dev_product_name: String
+        var dev_access_code: String
+        var nozzle_diameter: Double
+        var dev_structure: String
+    }
+    
+    // 基本信息
+    var basicInfo: BasicInfo
+    
+    // MQTT客户端 - 使用UUID作为标识避免Hashable需要考虑它
+    var mqttClient: BambuMQTTClient?
+    
+    // ID属性转发
+    var id: String { basicInfo.dev_id }
+    
+    // 属性访问器，转发到basicInfo
+    var dev_id: String { basicInfo.dev_id }
+    var name: String { basicInfo.name }
+    var online: Bool { basicInfo.online }
+    var print_status: String { basicInfo.print_status }
+    var dev_model_name: String { basicInfo.dev_model_name }
+    var dev_product_name: String { basicInfo.dev_product_name }
+    var dev_access_code: String { basicInfo.dev_access_code }
+    var nozzle_diameter: Double { basicInfo.nozzle_diameter }
+    var dev_structure: String { basicInfo.dev_structure }
     
     // 简化的打印状态描述
     var statusDescription: String {
@@ -22,7 +45,42 @@ struct PrinterInfo: Codable, Identifiable {
     var modelDescription: String {
         return "\(dev_product_name) (\(dev_model_name))"
     }
+    
+    // 实现Hashable协议
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: PrinterInfo, rhs: PrinterInfo) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
+
+// 移除这些属性，因为它们在PrinterStatusModel.swift中已经定义
+/*
+// 打印机信息模型的扩展，用于集成打印机状态
+extension PrinterInfo {
+    // 获取详细状态
+    var detailedStatus: PrinterStatus {
+        return PrinterStatus.fromString(print_status)
+    }
+    
+    // 获取状态分类
+    var statusCategory: StatusCategory {
+        return detailedStatus.category
+    }
+    
+    // 获取状态颜色
+    var statusColor: Color {
+        return statusCategory.color
+    }
+    
+    // 获取状态图标
+    var statusIcon: String {
+        return statusCategory.iconName
+    }
+}
+*/
 
 // 打印任务信息模型
 struct PrintTaskInfo: Codable, Identifiable {
@@ -89,7 +147,7 @@ struct PrinterListResponse: Codable {
     var message: String
     var code: String?
     var error: String?
-    var devices: [PrinterInfo]
+    var devices: [PrinterInfo.BasicInfo]
 }
 
 // 打印任务历史列表响应
@@ -127,94 +185,117 @@ class BambuPrinterManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var totalPrintCount: Int = 0
     
+    // 添加MQTT相关状态
+    @Published var mqttStatusMessages: [String] = []
+    
     private let authManager: BambuAuthManager
     
     init(authManager: BambuAuthManager) {
         self.authManager = authManager
     }
     
-    // 获取打印机列表
     func fetchPrinters() async {
-        guard authManager.isLoggedIn, let token = authManager.getAccessToken() else {
-            DispatchQueue.main.async {
-                self.errorMessage = "未登录，无法获取打印机信息"
-                self.printers = []
-            }
-            return
-        }
-        
-        DispatchQueue.main.async {
-            self.isLoading = true
-            self.errorMessage = nil
-        }
-        
-        guard let url = URL(string: "https://api.bambulab.cn/v1/iot-service/api/user/bind") else {
-            DispatchQueue.main.async {
-                self.errorMessage = "无效的URL"
-                self.isLoading = false
-            }
-            return
-        }
-        
-        do {
-            var urlRequest = URLRequest(url: url)
-            urlRequest.httpMethod = "GET"
-            urlRequest.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
-            let (data, response) = try await URLSession.shared.data(for: urlRequest)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
+            guard authManager.isLoggedIn, let token = authManager.getAccessToken() else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "无效的响应"
+                    self.errorMessage = "未登录，无法获取打印机信息"
+                    self.printers = []
+                }
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self.isLoading = true
+                self.errorMessage = nil
+            }
+            
+            guard let url = URL(string: "https://api.bambulab.cn/v1/iot-service/api/user/bind") else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "无效的URL"
                     self.isLoading = false
                 }
                 return
             }
             
-            if httpResponse.statusCode == 200 {
-                do {
-                    let printerResponse = try JSONDecoder().decode(PrinterListResponse.self, from: data)
-                    
-                    if printerResponse.error != nil {
-                        DispatchQueue.main.async {
-                            self.errorMessage = "获取打印机失败: \(printerResponse.error ?? "未知错误")"
-                            self.isLoading = false
-                        }
-                        return
-                    }
-                    
+            do {
+                var urlRequest = URLRequest(url: url)
+                urlRequest.httpMethod = "GET"
+                urlRequest.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                
+                let (data, response) = try await URLSession.shared.data(for: urlRequest)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
                     DispatchQueue.main.async {
-                        self.printers = printerResponse.devices
+                        self.errorMessage = "无效的响应"
                         self.isLoading = false
+                    }
+                    return
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    do {
+                        let printerResponse = try JSONDecoder().decode(PrinterListResponse.self, from: data)
                         
-                        // 如果获取到了打印机，可以继续获取最近任务
-                        if !self.printers.isEmpty {
-                            Task {
-                                await self.fetchRecentTasks()
+                        if printerResponse.error != nil {
+                            DispatchQueue.main.async {
+                                self.errorMessage = "获取打印机失败: \(printerResponse.error ?? "未知错误")"
+                                self.isLoading = false
+                            }
+                            return
+                        }
+                        
+                        DispatchQueue.main.async {
+                            // 断开现有的MQTT连接
+                            for printer in self.printers {
+                                printer.mqttClient?.disconnect()
+                            }
+                            
+                            // 将BasicInfo转换为完整的PrinterInfo并创建MQTT客户端
+                            self.printers = printerResponse.devices.map { basicInfo in
+                                var printerInfo = PrinterInfo(basicInfo: basicInfo)
+                                
+                                // 创建MQTT客户端 - 使用Cloud MQTT
+                                if let token = self.authManager.getAccessToken() {
+                                    let mqttClient = BambuMQTTClient(
+                                        serialNumber: basicInfo.dev_id,
+                                        cloudToken: token
+                                    )
+                                    printerInfo.mqttClient = mqttClient
+                                    mqttClient.connect()
+                                }
+                                
+                                return printerInfo
+                            }
+                            
+                            self.isLoading = false
+                            
+                            // 如果获取到了打印机，可以继续获取最近任务
+                            if !self.printers.isEmpty {
+                                Task {
+                                    await self.fetchRecentTasks()
+                                }
                             }
                         }
+                    } catch {
+                        DispatchQueue.main.async {
+                            self.errorMessage = "解析响应失败: \(error.localizedDescription)"
+                            self.isLoading = false
+                        }
                     }
-                } catch {
+                } else {
+                    // 处理错误响应
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unknown error"
                     DispatchQueue.main.async {
-                        self.errorMessage = "解析响应失败: \(error.localizedDescription)"
+                        self.errorMessage = "请求失败: \(httpResponse.statusCode), \(responseString)"
                         self.isLoading = false
                     }
                 }
-            } else {
-                // 处理错误响应
-                let responseString = String(data: data, encoding: .utf8) ?? "Unknown error"
+            } catch {
                 DispatchQueue.main.async {
-                    self.errorMessage = "请求失败: \(httpResponse.statusCode), \(responseString)"
+                    self.errorMessage = "请求失败: \(error.localizedDescription)"
                     self.isLoading = false
                 }
             }
-        } catch {
-            DispatchQueue.main.async {
-                self.errorMessage = "请求失败: \(error.localizedDescription)"
-                self.isLoading = false
-            }
         }
-    }
     
     // 获取最近的打印任务
     func fetchRecentTasks() async {
@@ -289,5 +370,20 @@ class BambuPrinterManager: ObservableObject {
         } catch {
             print("获取项目失败: \(error.localizedDescription)")
         }
+    }
+    
+    // 断开所有MQTT连接
+    func disconnectAllMQTT() {
+        for printer in printers {
+            printer.mqttClient?.disconnect()
+        }
+    }
+    
+    // 获取指定打印机的MQTT客户端
+    func getMQTTClient(for printerId: String) -> BambuMQTTClient? {
+        if let printer = printers.first(where: { $0.id == printerId }) {
+            return printer.mqttClient
+        }
+        return nil
     }
 }
