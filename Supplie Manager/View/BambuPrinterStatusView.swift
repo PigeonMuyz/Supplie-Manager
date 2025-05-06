@@ -173,29 +173,29 @@ struct PrinterStatusCard: View {
                         }
                         .font(.caption)
                         
-                        // 如果MQTT未连接，显示连接状态
-                        if let mqttClient = printer.mqttClient {
-                            HStack {
-                                Image(systemName: "cloud")
-                                    .foregroundColor(Color.orange)
-                                if let error = mqttClient.lastError {
-                                    Text(error)
-                                        .foregroundColor(Color.orange)
-                                } else {
-                                    Text("连接中...")
-                                        .foregroundColor(Color.orange)
-                                }
-                            }
-                            .font(.caption)
-                        } else {
-                            HStack {
-                                Image(systemName: "cloud.slash")
-                                    .foregroundColor(Color.gray)
-                                Text("未连接Cloud")
-                                    .foregroundColor(Color.gray)
-                            }
-                            .font(.caption)
-                        }
+//                        // 如果MQTT未连接，显示连接状态
+//                        if let mqttClient = printer.mqttClient {
+//                            HStack {
+//                                Image(systemName: "cloud")
+//                                    .foregroundColor(Color.orange)
+//                                if let error = mqttClient.lastError {
+//                                    Text(error)
+//                                        .foregroundColor(Color.orange)
+//                                } else {
+//                                    Text("连接中...")
+//                                        .foregroundColor(Color.orange)
+//                                }
+//                            }
+//                            .font(.caption)
+//                        } else {
+//                            HStack {
+//                                Image(systemName: "cloud.slash")
+//                                    .foregroundColor(Color.gray)
+//                                Text("未连接Cloud")
+//                                    .foregroundColor(Color.gray)
+//                            }
+//                            .font(.caption)
+//                        }
                     }
                 }
                 

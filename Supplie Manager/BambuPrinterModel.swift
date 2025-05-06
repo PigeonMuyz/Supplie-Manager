@@ -260,7 +260,7 @@ class BambuPrinterManager: ObservableObject {
                                         cloudToken: token
                                     )
                                     printerInfo.mqttClient = mqttClient
-                                    mqttClient.connect()
+                                    //mqttClient.connect()
                                 }
                                 
                                 return printerInfo
