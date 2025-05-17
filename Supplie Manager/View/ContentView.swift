@@ -179,7 +179,7 @@ struct StatisticsView: View {
                                 .frame(width: 20, height: 20)
                             
                             VStack(alignment: .leading) {
-                                Text(material.fullName)
+                                Text(material.displayNameWithId)
                                     .font(.headline)
                                 Text("剩余: \(String(format: "%.2f", material.remainingWeight))g / \(material.formattedWeight)")
                                     .font(.caption)
@@ -363,7 +363,7 @@ struct MaterialRow: View {
                 .frame(width: 20, height: 20)
             
             VStack(alignment: .leading) {
-                Text(material.fullName)
+                Text(material.displayNameWithId)
                     .font(.headline)
                 
                 Text("购入日期: \(dateFormatter.string(from: material.purchaseDate))")
@@ -404,6 +404,7 @@ struct AddMaterialView: View {
     @State private var purchaseDate = Date()
     @State private var price = ""
     @State private var weight = ""
+    @State private var shortCode: String = ""
     
     // 计算属性：获取所选品牌/主分类/子分类的预设
     private var filteredPresets: [MaterialPreset] {
@@ -514,6 +515,7 @@ struct AddMaterialView: View {
                     // 重量
                     TextField("重量 (g)", text: $weight)
                         .keyboardType(.decimalPad)
+                    TextField("标识码（可选）", text: $shortCode)
                 }
             }
             .navigationTitle("添加耗材")
@@ -576,7 +578,8 @@ struct AddMaterialView: View {
                 price: priceValue,
                 initialWeight: weightValue,
                 remainingWeight: weightValue,
-                colorHex: colorHex
+                colorHex: colorHex,
+                shortCode: shortCode.isEmpty ? nil : shortCode
             )
             
             store.addMaterial(newMaterial)
@@ -730,7 +733,7 @@ struct RecordUsageView: View {
                                             Circle()
                                                 .fill(material.color)
                                                 .frame(width: 12, height: 12)
-                                            Text(material.fullName)
+                                            Text(material.displayNameWithId)
                                         }.tag(material.id as UUID?)
                                     }
                                 }

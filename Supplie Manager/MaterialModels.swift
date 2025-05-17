@@ -3,15 +3,29 @@ import SwiftUI
 // 材料数据模型
 struct Material: Identifiable, Codable {
     var id = UUID()
+    // 品牌，例：Bambu Lab
     var brand: String
+    // 主分类，例：PLA
     var mainCategory: String
+    // 子分类，例：Basic
     var subCategory: String
+    // 颜色名称，例：樱花粉
     var name: String
     var purchaseDate: Date
     var price: Double
     var initialWeight: Double  // 以克为单位
     var remainingWeight: Double  // 以克为单位
     var colorHex: String
+    var shortCode: String?
+    
+    // 带标识的显示名称（用于区分）例：PLA Basic 樱花粉(Bambu Lab-咕咕1号)
+    var displayNameWithId: String {
+        if let code = shortCode, !code.isEmpty {
+            return "\(mainCategory) \(subCategory) \(name)(\(brand)-\(code))"
+        } else {
+            return "\(mainCategory) \(subCategory) \(name)(\(brand)-\(id.uuidString.prefix(4)))"
+        }
+    }
     
     var formattedWeight: String {
         if initialWeight >= 1000 {

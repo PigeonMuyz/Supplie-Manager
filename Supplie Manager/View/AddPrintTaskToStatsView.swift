@@ -52,7 +52,7 @@ struct AddPrintTaskToStatsView: View {
                                     Circle()
                                         .fill(material.color)
                                         .frame(width: 12, height: 12)
-                                    Text(material.fullName)
+                                    Text(material.displayNameWithId)
                                 }.tag(material.id as UUID?)
                             }
                         }
