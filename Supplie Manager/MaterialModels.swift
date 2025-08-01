@@ -95,7 +95,7 @@ struct Material: Identifiable, Codable {
 }
 
 // 材料预设模型
-struct MaterialPreset: Identifiable, Codable {
+struct MaterialPreset: Identifiable, Codable, Equatable {
     var id = UUID()
     var brand: String
     var mainCategory: String
@@ -159,6 +159,11 @@ struct MaterialPreset: Identifiable, Codable {
         }
         
         return parts.joined(separator: " ")
+    }
+    
+    // Equatable实现，基于id比较
+    static func == (lhs: MaterialPreset, rhs: MaterialPreset) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 
