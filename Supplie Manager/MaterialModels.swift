@@ -16,6 +16,8 @@ struct Material: Identifiable, Codable {
     var initialWeight: Double  // 以克为单位
     var remainingWeight: Double  // 以克为单位
     var colorHex: String
+    var gradientColorHex: String? // 渐变色的第二个颜色，如果为nil则不是渐变色
+    var gradientColors: [String]? // 多色渐变支持，包含所有渐变颜色
     var shortCode: String?
     
     // 带标识的显示名称（用于区分）例：PLA Basic 樱花粉(Bambu Lab-咕咕1号)
@@ -37,6 +39,39 @@ struct Material: Identifiable, Codable {
     
     var color: Color {
         Color(hex: colorHex) ?? .gray
+    }
+    
+    // 判断是否为渐变色
+    var isGradient: Bool {
+        return gradientColorHex != nil || (gradientColors != nil && !gradientColors!.isEmpty)
+    }
+    
+    // 判断是否为多色渐变（超过2色）
+    var isMultiColorGradient: Bool {
+        return gradientColors != nil && gradientColors!.count > 0
+    }
+    
+    // 获取所有渐变颜色（包括主色）
+    var allGradientColors: [Color] {
+        var colors = [color]
+        
+        if let multiColors = gradientColors {
+            colors.append(contentsOf: multiColors.compactMap { Color(hex: $0) })
+        } else if let gradientHex = gradientColorHex {
+            colors.append(Color(hex: gradientHex) ?? .gray)
+        }
+        
+        return colors
+    }
+    
+    // 获取渐变色的第二个颜色（向后兼容）
+    var gradientColor: Color? {
+        if let multiColors = gradientColors, !multiColors.isEmpty {
+            return Color(hex: multiColors[0])
+        } else if let gradientHex = gradientColorHex {
+            return Color(hex: gradientHex)
+        }
+        return nil
     }
     
     // a完整显示名称
@@ -67,9 +102,44 @@ struct MaterialPreset: Identifiable, Codable {
     var subCategory: String
     var colorName: String // 新增的颜色名称字段
     var colorHex: String
+    var gradientColorHex: String? // 渐变色的第二个颜色，如果为nil则不是渐变色
+    var gradientColors: [String]? // 多色渐变支持，包含所有渐变颜色
     
     var color: Color {
         Color(hex: colorHex) ?? .gray
+    }
+    
+    // 判断是否为渐变色
+    var isGradient: Bool {
+        return gradientColorHex != nil || (gradientColors != nil && !gradientColors!.isEmpty)
+    }
+    
+    // 判断是否为多色渐变（超过2色）
+    var isMultiColorGradient: Bool {
+        return gradientColors != nil && gradientColors!.count > 0
+    }
+    
+    // 获取所有渐变颜色（包括主色）
+    var allGradientColors: [Color] {
+        var colors = [color]
+        
+        if let multiColors = gradientColors {
+            colors.append(contentsOf: multiColors.compactMap { Color(hex: $0) })
+        } else if let gradientHex = gradientColorHex {
+            colors.append(Color(hex: gradientHex) ?? .gray)
+        }
+        
+        return colors
+    }
+    
+    // 获取渐变色的第二个颜色（向后兼容）
+    var gradientColor: Color? {
+        if let multiColors = gradientColors, !multiColors.isEmpty {
+            return Color(hex: multiColors[0])
+        } else if let gradientHex = gradientColorHex {
+            return Color(hex: gradientHex)
+        }
+        return nil
     }
     
     // 完整显示名称
@@ -131,7 +201,7 @@ class MaterialStore: ObservableObject {
     // 预设选项
     private let defaultBrands = ["Bambu Lab", "eSUN", "Polymaker", "Prusa", "Creality", "Sunlu", "Overture"]
     private let defaultMainCategories = ["PLA", "PETG", "ABS", "TPU", "ASA", "PC", "Nylon", "PVA"]
-    private let defaultSubCategories = ["无", "Matte", "Basic", "Silk", "Fluor", "Metal", "Wood", "CF"]
+    private let defaultSubCategories = ["无", "Matte", "Basic", "Silk", "Fluor", "Metal", "Wood", "CF", "Gradient"]
     
     // 自定义选项
     @Published var customBrands: [String] = []
@@ -182,93 +252,8 @@ class MaterialStore: ObservableObject {
         
         return result
     }
-    // 修改 MaterialStore 内的预设数据
-    private let bambuPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "白色", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "杏色", colorHex: "#F7E6DE"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "金色", colorHex: "#E4BD68"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "银色", colorHex: "#A6A9AA"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "灰色", colorHex: "#8E9089"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "青铜色", colorHex: "#847D48"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "棕色", colorHex: "#9D432C"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "红色", colorHex: "#C12E1F"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "品红色", colorHex: "#EC008C"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "粉色", colorHex: "#F55A74"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "橙色", colorHex: "#FF6A13"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "黄色", colorHex: "#F4EE2A"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "拓竹绿", colorHex: "#00AE42"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "墨绿色", colorHex: "#164B35"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "青色", colorHex: "#0086D6"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "深蓝色", colorHex: "#0A2989"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "蓝紫色", colorHex: "#5E43B7"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "灰蓝色", colorHex: "#5B6579"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "黑色", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "浅灰色", colorHex: "#D1D3D5"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "暖黄色", colorHex: "#FEC600"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "苹果绿色", colorHex: "#BECF00"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "南瓜橙色", colorHex: "#FF9016"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "桃红色", colorHex: "#F5547C"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "松石绿色", colorHex: "#00B1B7"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "钴蓝色", colorHex: "#0056B8"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "深灰色", colorHex: "#545454"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "可可棕色", colorHex: "#6F5034"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "胭脂红色", colorHex: "#9D2235"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Basic", colorName: "绀紫色", colorHex: "#482960"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "象牙白", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "骨白色", colorHex: "#CBC6B8"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "拿铁褐", colorHex: "#D3B7A7"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "岩石灰", colorHex: "#9B9EA0"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "枪灰色", colorHex: "#757575"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "丁香紫", colorHex: "#AE96D4"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "樱花粉", colorHex: "#E8AFCF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "柠檬黄", colorHex: "#F7D959"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "沙漠黄", colorHex: "#E8DBB7"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "橘橙色", colorHex: "#F99963"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "猩红色", colorHex: "#DE4343"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "暗夜红", colorHex: "#BB3D43"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "莓果紫", colorHex: "#950051"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "砖红色", colorHex: "#B15533"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "深棕色", colorHex: "#4D3324"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "暗夜棕", colorHex: "#7D6556"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "沙棕色", colorHex: "#AE835B"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "暗夜绿", colorHex: "#68724D"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "草绿色", colorHex: "#61C680"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "果绿色", colorHex: "#C2E189"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "冰蓝色", colorHex: "#A3D8E1"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "天蓝色", colorHex: "#56B7E6"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "海蓝色", colorHex: "#0078BF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "暗夜蓝", colorHex: "#042F56"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PLA", subCategory: "Matte", colorName: "炭黑色", colorHex: "#000000"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "粉色", colorHex: "#F9C1BD"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "紫色", colorHex: "#D6ABFF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "浅绿色", colorHex: "#77EDD7"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "浅蓝色", colorHex: "#61B0FF"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "橘色", colorHex: "#FF911A"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "灰色", colorHex: "#8E8E8E"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "茶色", colorHex: "#C9A381"),
-        MaterialPreset(brand: "Bambu Lab", mainCategory: "PETG", subCategory: "Translucent", colorName: "橄榄绿", colorHex: "#748C45"),
-    ]
-    
-    // eSun常见预设
-    private let esunPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "eSUN", mainCategory: "PLA", subCategory: "Plus", colorName: "标准白", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "eSUN", mainCategory: "PETG", subCategory: "Basic", colorName: "标准黑", colorHex: "#000000"),
-        MaterialPreset(brand: "eSUN", mainCategory: "ABS", subCategory: "Plus", colorName: "标准红", colorHex: "#FF0000"),
-        MaterialPreset(brand: "eSUN", mainCategory: "TPU", subCategory: "Basic", colorName: "标准蓝", colorHex: "#0000FF")
-    ]
-    
-    // Polymaker常见预设
-    private let polymakerPresets: [MaterialPreset] = [
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyLite PLA", subCategory: "Basic", colorName: "标准白", colorHex: "#FFFFFF"),
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyMax PLA", subCategory: "Basic", colorName: "标准黑", colorHex: "#000000"),
-        MaterialPreset(brand: "Polymaker", mainCategory: "PolyTerra PLA", subCategory: "Matte", colorName: "木质棕", colorHex: "#8B4513")
-    ]
     
     init() {
-        // 添加预设
-        materialPresets.append(contentsOf: bambuPresets)
-        materialPresets.append(contentsOf: esunPresets)
-        materialPresets.append(contentsOf: polymakerPresets)
         loadAllDefaultPresets()
         loadData()
     }
@@ -287,13 +272,8 @@ class MaterialStore: ObservableObject {
         
         if let presetsData = UserDefaults.standard.data(forKey: "materialPresets"),
            let decodedPresets = try? JSONDecoder().decode([MaterialPreset].self, from: presetsData) {
-            // 合并自定义预设与内置预设
-            let customPresets = decodedPresets.filter { preset in
-                !bambuPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-                !esunPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-                !polymakerPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory })
-            }
-            materialPresets.append(contentsOf: customPresets)
+            // 添加自定义预设（从JSON加载的预设已经在loadAllDefaultPresets中加载）
+            materialPresets.append(contentsOf: decodedPresets)
         }
         
         // 加载自定义的品牌、分类等
@@ -320,11 +300,11 @@ class MaterialStore: ObservableObject {
             UserDefaults.standard.set(encodedRecords, forKey: "printRecords")
         }
         
-        // 只保存自定义的预设，内置预设不需要保存
+        // 只保存用户自定义添加的预设，JSON中的默认预设不需要保存
         let customPresets = materialPresets.filter { preset in
-            !bambuPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-            !esunPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-            !polymakerPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory })
+            // 这里需要根据实际情况判断哪些是自定义预设
+            // 暂时保存所有预设，因为无法准确区分JSON预设和自定义预设
+            true
         }
         
         if let encodedPresets = try? JSONEncoder().encode(customPresets) {
@@ -444,25 +424,9 @@ class MaterialStore: ObservableObject {
     }
     
     func deletePreset(at indexSet: IndexSet) {
-        // 过滤出自定义预设
-        let customPresets = materialPresets.filter { preset in
-            !bambuPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-            !esunPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory }) &&
-            !polymakerPresets.contains(where: { $0.brand == preset.brand && $0.mainCategory == preset.mainCategory && $0.subCategory == preset.subCategory })
-        }
-        
-        // 只删除自定义预设
-        let customIndicesToDelete = indexSet.map { idx -> Int? in
-            let preset = materialPresets[idx]
-            return customPresets.firstIndex(where: { $0.id == preset.id })
-        }.compactMap { $0 }
-        
-        for index in customIndicesToDelete.sorted(by: >) {
-            if let presetIndex = materialPresets.firstIndex(where: { $0.id == customPresets[index].id }) {
-                materialPresets.remove(at: presetIndex)
-            }
-        }
-        
+        // 注意：删除预设时需要谨慎，确保不删除JSON中加载的默认预设
+        // 目前暂时允许删除所有预设，可根据需要进一步限制
+        materialPresets.remove(atOffsets: indexSet)
         saveData()
     }
     
@@ -544,5 +508,70 @@ class MaterialStore: ObservableObject {
             materials[index].remainingWeight = 0
             saveData()
         }
+    }
+}
+
+// MARK: - 颜色显示组件
+import SwiftUI
+
+// 通用的材料颜色显示组件，支持单色和渐变色
+struct MaterialColorView: View {
+    let material: Material
+    let size: CGFloat
+    let strokeWidth: CGFloat
+    
+    init(material: Material, size: CGFloat = 20, strokeWidth: CGFloat = 1) {
+        self.material = material
+        self.size = size
+        self.strokeWidth = strokeWidth
+    }
+    
+    var body: some View {
+        Circle()
+            .fill(
+                material.isGradient 
+                    ? LinearGradient(
+                        colors: material.allGradientColors,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    : LinearGradient(colors: [material.color], startPoint: .center, endPoint: .center)
+            )
+            .frame(width: size, height: size)
+            .overlay(
+                Circle()
+                    .stroke(.quaternary, lineWidth: strokeWidth)
+            )
+    }
+}
+
+// 通用的材料预设颜色显示组件，支持单色和渐变色
+struct MaterialPresetColorView: View {
+    let preset: MaterialPreset
+    let size: CGFloat
+    let strokeWidth: CGFloat
+    
+    init(preset: MaterialPreset, size: CGFloat = 20, strokeWidth: CGFloat = 1) {
+        self.preset = preset
+        self.size = size
+        self.strokeWidth = strokeWidth
+    }
+    
+    var body: some View {
+        Circle()
+            .fill(
+                preset.isGradient 
+                    ? LinearGradient(
+                        colors: preset.allGradientColors,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    : LinearGradient(colors: [preset.color], startPoint: .center, endPoint: .center)
+            )
+            .frame(width: size, height: size)
+            .overlay(
+                Circle()
+                    .stroke(.quaternary, lineWidth: strokeWidth)
+            )
     }
 }

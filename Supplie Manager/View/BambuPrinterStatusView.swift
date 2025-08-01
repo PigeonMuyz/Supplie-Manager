@@ -74,9 +74,6 @@ struct BambuPrinterStatusView: View {
     private func stopAutoRefresh() {
         timer?.invalidate()
         timer = nil
-        
-        // 断开所有MQTT连接
-        printerManager.disconnectAllMQTT()
     }
 }
 
@@ -102,101 +99,15 @@ struct PrinterStatusCard: View {
                     }
                     .font(.caption)
                     
-                    // 从MQTT获取状态
-                    if let mqttClient = printer.mqttClient, mqttClient.isConnected {
-                        let status = mqttClient.getPrintStatus()
-                        HStack {
-                            Text("状态:")
-                            Text(status.description)
-                                .foregroundColor(status.category.color)
-                            Image(systemName: status.category.iconName)
-                                .foregroundColor(status.category.color)
-                        }
-                        .font(.caption)
-                        
-                        // 如果是打印中，显示进度信息
-                        if status.category == .active {
-                            HStack {
-                                Text("进度:")
-                                Text("\(Int(mqttClient.getPrintProgress() * 100))%")
-                                    .foregroundColor(Color.blue)
-                            }
-                            .font(.caption)
-                            
-                            HStack {
-                                Text("层:")
-                                Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
-                                    .foregroundColor(Color.blue)
-                            }
-                            .font(.caption)
-                            
-                            // 格式化剩余时间
-                            let remainingTime = mqttClient.getRemainingTime()
-                            let hours = remainingTime / 3600
-                            let minutes = (remainingTime % 3600) / 60
-                            HStack {
-                                Text("剩余时间:")
-                                Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
-                                    .foregroundColor(Color.blue)
-                            }
-                            .font(.caption)
-                        }
-                        
-                        // 显示温度信息
-                        HStack {
-                            Text("温度:")
-                            Text("喷嘴 \(Int(mqttClient.getNozzleTemperature()))°C/\(Int(mqttClient.getNozzleTargetTemperature()))°C")
-                                .foregroundColor(Color.orange)
-                            Text("热床 \(Int(mqttClient.getBedTemperature()))°C/\(Int(mqttClient.getBedTargetTemperature()))°C")
-                                .foregroundColor(Color.orange)
-                        }
-                        .font(.caption)
-                        
-                        // 显示MQTT状态信息
-                        if let message = mqttClient.lastMessage {
-                            HStack {
-                                Image(systemName: "cloud.fill")
-                                    .foregroundColor(Color.green)
-                                Text("Cloud实时连接")
-                                    .foregroundColor(Color.green)
-                            }
-                            .font(.caption)
-                        }
-                    } else {
-                        // 从API获取状态（备用方案）
-                        HStack {
-                            Text("状态:")
-                            Text(printer.detailedStatus.description)
-                                .foregroundColor(printer.statusColor)
-                            Image(systemName: printer.statusIcon)
-                                .foregroundColor(printer.statusColor)
-                        }
-                        .font(.caption)
-                        
-//                        // 如果MQTT未连接，显示连接状态
-//                        if let mqttClient = printer.mqttClient {
-//                            HStack {
-//                                Image(systemName: "cloud")
-//                                    .foregroundColor(Color.orange)
-//                                if let error = mqttClient.lastError {
-//                                    Text(error)
-//                                        .foregroundColor(Color.orange)
-//                                } else {
-//                                    Text("连接中...")
-//                                        .foregroundColor(Color.orange)
-//                                }
-//                            }
-//                            .font(.caption)
-//                        } else {
-//                            HStack {
-//                                Image(systemName: "cloud.slash")
-//                                    .foregroundColor(Color.gray)
-//                                Text("未连接Cloud")
-//                                    .foregroundColor(Color.gray)
-//                            }
-//                            .font(.caption)
-//                        }
+                    // 从API获取状态
+                    HStack {
+                        Text("状态:")
+                        Text(printer.detailedStatus.description)
+                            .foregroundColor(printer.statusColor)
+                        Image(systemName: printer.statusIcon)
+                            .foregroundColor(printer.statusColor)
                     }
+                    .font(.caption)
                 }
                 
                 Spacer()
@@ -252,76 +163,6 @@ struct PrintHistoryView: View {
                 }
                 
                 List {
-                    // 实时状态显示区域 - 使用ID查找打印机
-                    if let selectedId = selectedPrinterId,
-                       let printer = printerManager.printers.first(where: { $0.id == selectedId }),
-                       let mqttClient = printer.mqttClient,
-                       mqttClient.isConnected {
-                        
-                        Section(header: Text("实时信息")) {
-                            // 打印机状态
-                            let status = mqttClient.getPrintStatus()
-                            HStack {
-                                Text("打印状态")
-                                Spacer()
-                                Text(status.description)
-                                    .foregroundColor(status.category.color)
-                            }
-                            
-                            // 如果正在打印，显示详细信息
-                            if status.category == .active || status.category == .preparing {
-                                // 当前打印文件
-                                HStack {
-                                    Text("打印文件")
-                                    Spacer()
-                                    Text(mqttClient.getFileName())
-                                        .foregroundColor(Color.secondary)
-                                }
-                                
-                                // 打印进度
-                                HStack {
-                                    Text("打印进度")
-                                    Spacer()
-                                    Text("\(Int(mqttClient.getPrintProgress() * 100))%")
-                                        .foregroundColor(Color.secondary)
-                                }
-                                
-                                // 层进度
-                                HStack {
-                                    Text("层进度")
-                                    Spacer()
-                                    Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
-                                        .foregroundColor(Color.secondary)
-                                }
-                                
-                                // 剩余时间
-                                let remainingTime = mqttClient.getRemainingTime()
-                                let hours = remainingTime / 3600
-                                let minutes = (remainingTime % 3600) / 60
-                                HStack {
-                                    Text("剩余时间")
-                                    Spacer()
-                                    Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
-                                        .foregroundColor(Color.secondary)
-                                }
-                                
-                                // 温度信息
-                                HStack {
-                                    Text("喷嘴温度")
-                                    Spacer()
-                                    Text("\(Int(mqttClient.getNozzleTemperature()))°C / \(Int(mqttClient.getNozzleTargetTemperature()))°C")
-                                        .foregroundColor(Color.secondary)
-                                }
-                                
-                                HStack {
-                                    Text("热床温度")
-                                    Spacer()
-                                    Text("\(Int(mqttClient.getBedTemperature()))°C / \(Int(mqttClient.getBedTargetTemperature()))°C")
-                                        .foregroundColor(Color.secondary)
-                                }
-                            }
-                        }
-                    }
                     
                     Section(header: Text("打印历史")) {
                         if printerManager.recentTasks.isEmpty {

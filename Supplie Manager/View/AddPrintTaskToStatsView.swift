@@ -49,9 +49,7 @@ struct AddPrintTaskToStatsView: View {
                             Text("请选择").tag(nil as UUID?)
                             ForEach(availableMaterials) { material in
                                 HStack {
-                                    Circle()
-                                        .fill(material.color)
-                                        .frame(width: 12, height: 12)
+                                    MaterialColorView(material: material, size: 12, strokeWidth: 0.5)
                                     Text(material.displayNameWithId)
                                 }.tag(material.id as UUID?)
                             }

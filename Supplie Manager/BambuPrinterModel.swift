@@ -19,8 +19,6 @@ struct PrinterInfo: Identifiable, Hashable {
     // 基本信息
     var basicInfo: BasicInfo
     
-    // MQTT客户端 - 使用UUID作为标识避免Hashable需要考虑它
-    var mqttClient: BambuMQTTClient?
     
     // ID属性转发
     var id: String { basicInfo.dev_id }
@@ -185,8 +183,6 @@ class BambuPrinterManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var totalPrintCount: Int = 0
     
-    // 添加MQTT相关状态
-    @Published var mqttStatusMessages: [String] = []
     
     private let authManager: BambuAuthManager
     
@@ -244,26 +240,9 @@ class BambuPrinterManager: ObservableObject {
                         }
                         
                         DispatchQueue.main.async {
-                            // 断开现有的MQTT连接
-                            for printer in self.printers {
-                                printer.mqttClient?.disconnect()
-                            }
-                            
-                            // 将BasicInfo转换为完整的PrinterInfo并创建MQTT客户端
+                            // 将BasicInfo转换为完整的PrinterInfo
                             self.printers = printerResponse.devices.map { basicInfo in
-                                var printerInfo = PrinterInfo(basicInfo: basicInfo)
-                                
-                                // 创建MQTT客户端 - 使用Cloud MQTT
-                                if let token = self.authManager.getAccessToken() {
-                                    let mqttClient = BambuMQTTClient(
-                                        serialNumber: basicInfo.dev_id,
-                                        cloudToken: token
-                                    )
-                                    printerInfo.mqttClient = mqttClient
-                                    //mqttClient.connect()
-                                }
-                                
-                                return printerInfo
+                                PrinterInfo(basicInfo: basicInfo)
                             }
                             
                             self.isLoading = false
@@ -372,18 +351,4 @@ class BambuPrinterManager: ObservableObject {
         }
     }
     
-    // 断开所有MQTT连接
-    func disconnectAllMQTT() {
-        for printer in printers {
-            printer.mqttClient?.disconnect()
-        }
-    }
-    
-    // 获取指定打印机的MQTT客户端
-    func getMQTTClient(for printerId: String) -> BambuMQTTClient? {
-        if let printer = printers.first(where: { $0.id == printerId }) {
-            return printer.mqttClient
-        }
-        return nil
-    }
 }

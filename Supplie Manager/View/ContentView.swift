@@ -48,10 +48,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onDisappear {
-            // 确保在APP退出时断开所有MQTT连接
-            printerManager.disconnectAllMQTT()
-        }
     }
 }
 
@@ -61,7 +57,6 @@ struct StatisticsView: View {
     @ObservedObject var authManager: BambuAuthManager
     @ObservedObject var printerManager: BambuPrinterManager
     @State private var showLoginSheet = false
-    @State private var mqttMessages: [String] = []
     
     var body: some View {
         NavigationView {
@@ -106,59 +101,6 @@ struct StatisticsView: View {
                     }
                 }
                 
-                // 显示正在进行的打印任务
-                if let activePrinter = printerManager.printers.first(where: {
-                    guard let mqttClient = $0.mqttClient else { return false }
-                    return mqttClient.isConnected && mqttClient.getPrintStatus().category == .active
-                }) {
-                    if let mqttClient = activePrinter.mqttClient {
-                        Section(header: Text("当前打印任务")) {
-                            HStack {
-                                Text("打印机")
-                                Spacer()
-                                Text(activePrinter.name)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            HStack {
-                                Text("文件")
-                                Spacer()
-                                Text(mqttClient.getFileName())
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            HStack {
-                                Text("进度")
-                                Spacer()
-                                Text("\(Int(mqttClient.getPrintProgress() * 100))%")
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            // 进度条
-                            ProgressView(value: mqttClient.getPrintProgress())
-                                .progressViewStyle(LinearProgressViewStyle())
-                                .padding(.vertical, 4)
-                            
-                            HStack {
-                                Text("层")
-                                Spacer()
-                                Text("\(mqttClient.getCurrentLayer())/\(mqttClient.getTotalLayers())")
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            // 剩余时间
-                            let remainingTime = mqttClient.getRemainingTime()
-                            let hours = remainingTime / 3600
-                            let minutes = (remainingTime % 3600) / 60
-                            HStack {
-                                Text("剩余时间")
-                                Spacer()
-                                Text(hours > 0 ? "\(hours)小时\(minutes)分钟" : "\(minutes)分钟")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
                 
                 Section(header: Text("现有耗材")) {
                     // 只显示有剩余的耗材
@@ -174,9 +116,7 @@ struct StatisticsView: View {
                                  return $0.purchaseDate > $1.purchaseDate
                              })) { material in
                         HStack {
-                            Circle()
-                                .fill(material.color)
-                                .frame(width: 20, height: 20)
+                            MaterialColorView(material: material, size: 20, strokeWidth: 1)
                             
                             VStack(alignment: .leading) {
                                 Text(material.displayNameWithId)
@@ -358,9 +298,7 @@ struct MaterialRow: View {
     
     var body: some View {
         HStack {
-            Circle()
-                .fill(material.color)
-                .frame(width: 20, height: 20)
+            MaterialColorView(material: material, size: 20, strokeWidth: 1)
             
             VStack(alignment: .leading) {
                 Text(material.displayNameWithId)
@@ -401,6 +339,8 @@ struct AddMaterialView: View {
     @State private var customSubCategory = ""
     @State private var colorName = ""
     @State private var colorHex = "#FFFFFF"
+    @State private var isGradient = false
+    @State private var gradientColorHex = "#FFFF00"
     @State private var purchaseDate = Date()
     @State private var price = ""
     @State private var weight = ""
@@ -468,9 +408,7 @@ struct AddMaterialView: View {
                             Text("自定义").tag("")
                             ForEach(filteredPresets) { preset in
                                 HStack {
-                                    Circle()
-                                        .fill(preset.color)
-                                        .frame(width: 12, height: 12)
+                                    MaterialPresetColorView(preset: preset, size: 12, strokeWidth: 0.5)
                                     Text(preset.colorName)
                                 }.tag(preset.colorName)
                             }
@@ -482,8 +420,11 @@ struct AddMaterialView: View {
                     // 颜色名称
                     TextField("颜色名称", text: $colorName)
                     
+                    // 渐变色开关
+                    Toggle("渐变色", isOn: $isGradient)
+                    
                     // 颜色选择
-                    ColorPicker("颜色", selection: Binding(
+                    ColorPicker(isGradient ? "起始颜色" : "颜色", selection: Binding(
                         get: { Color(hex: colorHex) ?? .white },
                         set: { newColor in
                             // 将Color转换为hex值
@@ -499,6 +440,26 @@ struct AddMaterialView: View {
                             }
                         }
                     ))
+                    
+                    // 如果选择了渐变色，显示第二个颜色选择器
+                    if isGradient {
+                        ColorPicker("结束颜色", selection: Binding(
+                            get: { Color(hex: gradientColorHex) ?? .yellow },
+                            set: { newColor in
+                                // 将Color转换为hex值
+                                if let components = newColor.cgColor?.components,
+                                   components.count >= 3 {
+                                    let r = Float(components[0])
+                                    let g = Float(components[1])
+                                    let b = Float(components[2])
+                                    gradientColorHex = String(format: "#%02lX%02lX%02lX",
+                                                              lroundf(r * 255),
+                                                              lroundf(g * 255),
+                                                              lroundf(b * 255))
+                                }
+                            }
+                        ))
+                    }
                     
                     // 购入日期
                     DatePicker(
@@ -579,6 +540,7 @@ struct AddMaterialView: View {
                 initialWeight: weightValue,
                 remainingWeight: weightValue,
                 colorHex: colorHex,
+                gradientColorHex: isGradient ? gradientColorHex : nil,
                 shortCode: shortCode.isEmpty ? nil : shortCode
             )
             
@@ -730,9 +692,7 @@ struct RecordUsageView: View {
                                     Text("请选择").tag(nil as UUID?)
                                     ForEach(availableMaterials) { material in
                                         HStack {
-                                            Circle()
-                                                .fill(material.color)
-                                                .frame(width: 12, height: 12)
+                                            MaterialColorView(material: material, size: 12, strokeWidth: 0.5)
                                             Text(material.displayNameWithId)
                                         }.tag(material.id as UUID?)
                                     }
@@ -825,6 +785,7 @@ struct RecordUsageView: View {
 struct PresetManagementView: View {
     @ObservedObject var store: MaterialStore
     @State private var isShowingAddPresetSheet = false
+    @State private var searchText = ""
     
     // 新预设表单状态
     @State private var selectedBrand = ""
@@ -835,12 +796,28 @@ struct PresetManagementView: View {
     @State private var customSubCategory = ""
     @State private var colorName = "" // 新增的颜色名称字段
     @State private var colorHex = "#FFFFFF"
+    @State private var isGradient = false
+    @State private var gradientColorHex = "#FFFF00"
+    
+    // 搜索过滤的预设
+    private var filteredPresets: [MaterialPreset] {
+        if searchText.isEmpty {
+            return store.materialPresets
+        } else {
+            return store.materialPresets.filter { preset in
+                preset.brand.localizedCaseInsensitiveContains(searchText) ||
+                preset.mainCategory.localizedCaseInsensitiveContains(searchText) ||
+                preset.subCategory.localizedCaseInsensitiveContains(searchText) ||
+                preset.colorName.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         NavigationView {
             List {
-                // 首先按品牌分组
-                ForEach(Array(Dictionary(grouping: store.materialPresets, by: { $0.brand }).sorted(by: { $0.key < $1.key })), id: \.key) { brand, brandPresets in
+                // 首先按品牌分组（使用过滤后的预设）
+                ForEach(Array(Dictionary(grouping: filteredPresets, by: { $0.brand }).sorted(by: { $0.key < $1.key })), id: \.key) { brand, brandPresets in
                     Section(header: Text(brand)) {
                         // 在每个品牌下按材料类型（主分类）分组
                         ForEach(Array(Dictionary(grouping: brandPresets, by: { $0.mainCategory }).sorted(by: { $0.key < $1.key })), id: \.key) { mainCategory, categoryPresets in
@@ -851,9 +828,7 @@ struct PresetManagementView: View {
                                         // 显示该细分类型下的所有颜色预设
                                         ForEach(subCategoryPresets) { preset in
                                             HStack {
-                                                Circle()
-                                                    .fill(preset.color)
-                                                    .frame(width: 20, height: 20)
+                                                MaterialPresetColorView(preset: preset, size: 20, strokeWidth: 1)
                                                 
                                                 Text(preset.colorName)
                                                     .font(.body)
@@ -876,6 +851,7 @@ struct PresetManagementView: View {
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "搜索品牌、分类或颜色...")
             .navigationTitle("耗材预设")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -928,8 +904,11 @@ struct PresetManagementView: View {
                             // 颜色名称
                             TextField("颜色名称", text: $colorName)
                             
+                            // 渐变色开关
+                            Toggle("渐变色", isOn: $isGradient)
+                            
                             // 颜色选择
-                            ColorPicker("颜色", selection: Binding(
+                            ColorPicker(isGradient ? "起始颜色" : "颜色", selection: Binding(
                                 get: { Color(hex: colorHex) ?? .white },
                                 set: { newColor in
                                     // 将Color转换为hex值
@@ -945,6 +924,26 @@ struct PresetManagementView: View {
                                     }
                                 }
                             ))
+                            
+                            // 如果选择了渐变色，显示第二个颜色选择器
+                            if isGradient {
+                                ColorPicker("结束颜色", selection: Binding(
+                                    get: { Color(hex: gradientColorHex) ?? .yellow },
+                                    set: { newColor in
+                                        // 将Color转换为hex值
+                                        if let components = newColor.cgColor?.components,
+                                           components.count >= 3 {
+                                            let r = Float(components[0])
+                                            let g = Float(components[1])
+                                            let b = Float(components[2])
+                                            gradientColorHex = String(format: "#%02lX%02lX%02lX",
+                                                                      lroundf(r * 255),
+                                                                      lroundf(g * 255),
+                                                                      lroundf(b * 255))
+                                        }
+                                    }
+                                ))
+                            }
                         }
                     }
                     .navigationTitle("添加预设")
@@ -1005,7 +1004,8 @@ struct PresetManagementView: View {
             mainCategory: finalMainCategory,
             subCategory: finalSubCategory,
             colorName: colorName, // 新增的颜色名称
-            colorHex: colorHex
+            colorHex: colorHex,
+            gradientColorHex: isGradient ? gradientColorHex : nil
         )
         
         store.addPreset(newPreset)
@@ -1020,6 +1020,8 @@ struct PresetManagementView: View {
         customSubCategory = ""
         colorName = "" // 重置颜色名称
         colorHex = "#FFFFFF"
+        isGradient = false
+        gradientColorHex = "#FFFF00"
     }
 }
 

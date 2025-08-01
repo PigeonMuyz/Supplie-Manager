@@ -1,0 +1,1190 @@
+{
+  "bambuLab": [
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "杏色",
+      "colorHex": "#F7E6DE"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "金色",
+      "colorHex": "#E4BD68"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "银色",
+      "colorHex": "#A6A9AA"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "灰色",
+      "colorHex": "#8E9089"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "青铜色",
+      "colorHex": "#847D48"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "棕色",
+      "colorHex": "#9D432C"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "红色",
+      "colorHex": "#C12E1F"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "品红色",
+      "colorHex": "#EC008C"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "粉色",
+      "colorHex": "#F55A74"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "橙色",
+      "colorHex": "#FF6A13"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "黄色",
+      "colorHex": "#F4EE2A"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "拓竹绿",
+      "colorHex": "#16C344"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "墨绿色",
+      "colorHex": "#164B35"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "青色",
+      "colorHex": "#0086D6"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "深蓝色",
+      "colorHex": "#0A2989"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "蓝紫色",
+      "colorHex": "#5E43B7"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "灰蓝色",
+      "colorHex": "#5B6579"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Basic",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "灰色",
+      "colorHex": "#999D9D"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "绿色",
+      "colorHex": "#00BB31"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "天蓝色",
+      "colorHex": "#4DAFDA"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "蓝色",
+      "colorHex": "#004EA8"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "浅肤色",
+      "colorHex": "#ECC3B2"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "黄色",
+      "colorHex": "#EFE255"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "橙黄色",
+      "colorHex": "#FFB549"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "橙色",
+      "colorHex": "#FF671F"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "红色",
+      "colorHex": "#C6001A"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Lite",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "象牙白",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "拿铁褐",
+      "colorHex": "#D3B7A7"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "岩石灰",
+      "colorHex": "#9B9EA0"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "丁香紫",
+      "colorHex": "#AE96D4"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "樱花粉",
+      "colorHex": "#E8AFCF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "柠檬黄",
+      "colorHex": "#F7D959"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "橘橙色",
+      "colorHex": "#F99963"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "猩红色",
+      "colorHex": "#DE4343"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "暗夜红",
+      "colorHex": "#BB3D43"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "暗夜棕",
+      "colorHex": "#7D6556"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "暗夜绿",
+      "colorHex": "#68724D"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "草绿色",
+      "colorHex": "#61C680"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "冰蓝色",
+      "colorHex": "#A3D8E1"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "海蓝色",
+      "colorHex": "#0078BF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "暗夜蓝",
+      "colorHex": "#042F56"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Matte",
+      "colorName": "炭黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "蓝白渐变",
+      "colorHex": "#9CDBD9",
+      "gradientColors": ["#FFFFFF"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "多巴胺",
+      "colorHex": "#E7C1D5",
+      "gradientColors": ["#8EC9E9"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "青柠绿",
+      "colorHex": "#B6FF43",
+      "gradientColors": ["#4EC939"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "蓝绿渐变",
+      "colorHex": "#307FE2",
+      "gradientColors": ["#54FF9B"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "泡泡紫",
+      "colorHex": "#6FCAEF",
+      "gradientColors": ["#8573DD"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "红白渐变",
+      "colorHex": "#E94B3C",
+      "gradientColors": ["#FFFFFF"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "霞光粉",
+      "colorHex": "#F78F77",
+      "gradientColors": ["#E4505A"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Gradient",
+      "colorName": "日落橙",
+      "colorHex": "#CE4406",
+      "gradientColors": ["#ED9558"]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Metal",
+      "colorName": "香槟金",
+      "colorHex": "#B39B84"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Metal",
+      "colorName": "咖啡金",
+      "colorHex": "#AA6443"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Metal",
+      "colorName": "极光绿",
+      "colorHex": "#1D7C6A"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Metal",
+      "colorName": "典雅蓝",
+      "colorHex": "#39699E"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Metal",
+      "colorName": "深空灰",
+      "colorHex": "#43403D"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "蓝绿色",
+      "colorHex": "#009FAE"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "透明蓝",
+      "colorHex": "#0047BB"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "透明紫",
+      "colorHex": "#8344B0"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "透明橙",
+      "colorHex": "#F74E02"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "透明红",
+      "colorHex": "#B50011"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "浅青玉",
+      "colorHex": "#96D8AF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "黄水晶",
+      "colorHex": "#F5DBAB"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "果冻粉",
+      "colorHex": "#F5B6CD"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "冻蓝",
+      "colorHex": "#B8CDE9"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Translucent",
+      "colorName": "紫罗兰",
+      "colorHex": "#B8ACD6"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "灰色",
+      "colorHex": "#ADB1B2"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "黄色",
+      "colorHex": "#FFD00B"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "绿色",
+      "colorHex": "#00AE42"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "橙色",
+      "colorHex": "#F75403"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "红色",
+      "colorHex": "#BC0900"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "蓝色",
+      "colorHex": "#002E96"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "HF",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "白橡木",
+      "colorHex": "#D6CCA3"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "经典桦木",
+      "colorHex": "#918669"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "赭石黄",
+      "colorHex": "#C98935"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "陶土褐",
+      "colorHex": "#995F11"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "黑胡桃",
+      "colorHex": "#4F3F24"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Wood",
+      "colorName": "红木",
+      "colorHex": "#4C241C"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸白",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "薄荷绿",
+      "colorHex": "#96DCB9"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸银",
+      "colorHex": "#C8C8C8"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "天空蓝",
+      "colorHex": "#A8C6EE"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "香槟色",
+      "colorHex": "#F3CFB2"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸粉",
+      "colorHex": "#F7ADA6"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸金",
+      "colorHex": "#F4A925"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "烟粉色",
+      "colorHex": "#BA9594"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸紫",
+      "colorHex": "#8671CB"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "丝绸蓝",
+      "colorHex": "#008BDA"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "钛灰色",
+      "colorHex": "#5F6367"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "糖果绿",
+      "colorHex": "#018814"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk+",
+      "colorName": "糖果红",
+      "colorHex": "#D02727"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "粉色",
+      "colorHex": "#F9C1BD"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "紫色",
+      "colorHex": "#D6ABFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "浅绿色",
+      "colorHex": "#77EDD7"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "浅蓝色",
+      "colorHex": "#61B0FF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "橘色",
+      "colorHex": "#FF911A"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "灰色",
+      "colorHex": "#8E8E8E"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "茶色",
+      "colorHex": "#C9A381"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "Translucent",
+      "colorName": "橄榄绿",
+      "colorHex": "#748C45"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "金粉双色",
+      "colorHex": "#FF9425",
+      "gradientColors": [
+        "#C16784"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "蓝红双色",
+      "colorHex": "#0047BB",
+      "gradientColors": [
+        "#7D1B49"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "蓝粉双色",
+      "colorHex": "#0047BB",
+      "gradientColors": [
+        "#BB2265"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "蓝绿双色",
+      "colorHex": "#5FBFDE",
+      "gradientColors": [
+        "#70C884"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "黑红双色",
+      "colorHex": "#000000",
+      "gradientColors": [
+        "#A34342"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "浅彩虹",
+      "colorHex": "#EC984C",
+      "gradientColors": [
+        "#6CD4BC",
+        "#A66EB9",
+        "#D87694"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "马卡龙",
+      "colorHex": "#F772A4",
+      "gradientColors": [
+        "#00918B"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Silk",
+      "colorName": "星云紫",
+      "colorHex": "#7F3696",
+      "gradientColors": [
+        "#006EC9"
+      ]
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Galaxy",
+      "colorName": "星河棕",
+      "colorHex": "#684A43"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Galaxy",
+      "colorName": "星河绿",
+      "colorHex": "#3B465E"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Galaxy",
+      "colorName": "星云色",
+      "colorHex": "#424379"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Galaxy",
+      "colorName": "星河紫",
+      "colorHex": "#594177"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "夜光",
+      "colorName": "夜光粉",
+      "colorHex": "#F17B8F"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "夜光",
+      "colorName": "夜光橙",
+      "colorHex": "#FF9D5B"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "夜光",
+      "colorName": "夜光黄",
+      "colorHex": "#F8FF80"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "夜光",
+      "colorName": "夜光绿",
+      "colorHex": "#A1FFAC"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "夜光",
+      "colorName": "夜光蓝",
+      "colorHex": "#7AC0E9"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Marble",
+      "colorName": "大理石白",
+      "colorHex": "#F7F3F0"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Marble",
+      "colorName": "大理石红",
+      "colorHex": "#AD4E38"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Aero",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Aero",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "95A",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "95A",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PC",
+      "subCategory": "Basic",
+      "colorName": "透明白",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PC",
+      "subCategory": "Basic",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PC",
+      "subCategory": "Basic",
+      "colorName": "透明黑",
+      "colorHex": "#5A5161"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PC",
+      "subCategory": "Basic",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PAHT",
+      "subCategory": "CF",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PA6",
+      "subCategory": "CF",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PET",
+      "subCategory": "CF",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Support W",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Support W",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PA/PET",
+      "subCategory": "Support G",
+      "colorName": "草绿色",
+      "colorHex": "#C0DF16"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Sparkle",
+      "colorName": "碧玺灰",
+      "colorHex": "#8E9089"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Sparkle",
+      "colorName": "糖果红",
+      "colorHex": "#792B36"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Sparkle",
+      "colorName": "珠光绿",
+      "colorHex": "#3F5443"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Sparkle",
+      "colorName": "午夜蓝",
+      "colorHex": "#483D8B"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Sparkle",
+      "colorName": "闪耀黑",
+      "colorHex": "#2D2B28"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "灰色",
+      "colorHex": "#AFB1AE"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "银色",
+      "colorHex": "#959698"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "亮黄色",
+      "colorHex": "#F4D53F"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "天蓝色",
+      "colorHex": "#009BD8"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "橙色",
+      "colorHex": "#DC3A27"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PLA",
+      "subCategory": "Tough",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "CF",
+      "colorName": "砖红色",
+      "colorHex": "#9F332A"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "CF",
+      "colorName": "紫罗兰色",
+      "colorHex": "#583061"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "CF",
+      "colorName": "靛蓝色",
+      "colorHex": "#324585"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "CF",
+      "colorName": "圣诞绿色",
+      "colorHex": "#16B08E"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "PETG",
+      "subCategory": "CF",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "85A",
+      "colorName": "暖橙色",
+      "colorHex": "#F68B18"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "85A",
+      "colorName": "苍青色",
+      "colorHex": "#C3E2D6"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "90A",
+      "colorName": "冰封蓝",
+      "colorHex": "#A8C6EE"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "90A",
+      "colorName": "西瓜红",
+      "colorHex": "#C8C8C8"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "90A",
+      "colorName": "白色",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Bambu Lab",
+      "mainCategory": "TPU",
+      "subCategory": "90A",
+      "colorName": "黑色",
+      "colorHex": "#000000"
+    }
+  ],
+  "esun": [
+    {
+      "brand": "eSUN",
+      "mainCategory": "PLA",
+      "subCategory": "Plus",
+      "colorName": "标准白",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "eSUN",
+      "mainCategory": "PETG",
+      "subCategory": "Basic",
+      "colorName": "标准黑",
+      "colorHex": "#000000"
+    }
+  ],
+  "polymaker": [
+    {
+      "brand": "Polymaker",
+      "mainCategory": "PolyLite PLA",
+      "subCategory": "Basic",
+      "colorName": "标准白",
+      "colorHex": "#FFFFFF"
+    },
+    {
+      "brand": "Polymaker",
+      "mainCategory": "PolyMax PLA",
+      "subCategory": "Basic",
+      "colorName": "标准黑",
+      "colorHex": "#000000"
+    }
+  ]
+}
