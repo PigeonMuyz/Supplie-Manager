@@ -1371,6 +1371,15 @@ struct MaterialPresetPreviewSheet: View {
                         )
                         .frame(width: 280, height: 280)
                         .overlay(
+                            // 添加纹理效果
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.clear)
+                                .overlay(
+                                    MaterialTextureOverlay(subCategory: preset.subCategory)
+                                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                                )
+                        )
+                        .overlay(
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(.quaternary, lineWidth: 1)
                         )
