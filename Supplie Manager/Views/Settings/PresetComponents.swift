@@ -73,45 +73,23 @@ struct PresetRowView: View {
         HStack {
             MaterialPresetColorView(preset: preset, size: 20, strokeWidth: 1)
             
-            VStack(alignment: .leading) {
-                Text(preset.colorName)
-                    .font(.headline)
-                
-                Text(preset.colorHex.uppercased())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .monospaced()
-            }
-            
-            Spacer()
-            
-            // 材料纹理叠加效果（如果适用）
-            ZStack {
-                Circle()
-                    .fill(preset.isGradient ? 
-                          LinearGradient(colors: preset.allGradientColors, startPoint: .topLeading, endPoint: .bottomTrailing) :
-                          LinearGradient(colors: [preset.color], startPoint: .center, endPoint: .center))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Circle()
-                            .stroke(.quaternary, lineWidth: 1)
-                    )
-                
-                // 添加纹理叠加
-                MaterialTextureOverlay(subCategory: preset.subCategory)
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-            }
+            Text(preset.colorName)
+                .font(.body)
         }
+        .padding(.leading, 10)
         .contentShape(Rectangle())
         .onTapGesture {
             previewPreset = preset
-            showingPreview = true
+        }
+        .onChange(of: previewPreset) {
+            if previewPreset != nil {
+                showingPreview = true
+            }
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 if let index = store.materialPresets.firstIndex(where: { $0.id == preset.id }) {
-                    store.materialPresets.remove(at: index)
+                    store.deletePreset(at: IndexSet([index]))
                 }
             } label: {
                 Label("删除", systemImage: "trash")
