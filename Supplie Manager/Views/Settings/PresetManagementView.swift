@@ -65,7 +65,7 @@ struct PresetManagementView: View {
                 if let preset = previewPreset {
                     MaterialPresetPreviewSheet(preset: preset, isPresented: $showingPreview)
                         .onDisappear {
-                            previewPreset = nil
+                            previewPreset = nil  
                         }
                 }
             }
