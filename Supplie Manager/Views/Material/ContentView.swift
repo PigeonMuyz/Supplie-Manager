@@ -28,13 +28,10 @@ struct ContentView: View {
                     Label("记录用量", systemImage: "pencil")
                 }
             
-            NavigationView {
-                Text("预设管理")
-                    .navigationTitle("预设管理")
-            }
-            .tabItem {
-                Label("预设管理", systemImage: "paintbrush.fill")
-            }
+            PresetManagementView(store: store)
+                .tabItem {
+                    Label("预设管理", systemImage: "paintbrush.fill")
+                }
         }
     }
 }
