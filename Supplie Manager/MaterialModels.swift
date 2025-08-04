@@ -165,6 +165,17 @@ struct MaterialPreset: Identifiable, Codable, Equatable {
     static func == (lhs: MaterialPreset, rhs: MaterialPreset) -> Bool {
         return lhs.id == rhs.id
     }
+    
+    // 基于内容的比较，用于检测重复预设
+    func isContentEqual(to other: MaterialPreset) -> Bool {
+        return self.brand == other.brand &&
+               self.mainCategory == other.mainCategory &&
+               self.subCategory == other.subCategory &&
+               self.colorName == other.colorName &&
+               self.colorHex == other.colorHex &&
+               self.gradientColorHex == other.gradientColorHex &&
+               self.gradientColors == other.gradientColors
+    }
 }
 
 // 打印记录模型
@@ -261,6 +272,18 @@ class MaterialStore: ObservableObject {
     init() {
         loadAllDefaultPresets()
         loadData()
+        removeDuplicatePresets()
+    }
+    
+    // 移除重复的预设
+    private func removeDuplicatePresets() {
+        var uniquePresets: [MaterialPreset] = []
+        for preset in materialPresets {
+            if !uniquePresets.contains(where: { $0.isContentEqual(to: preset) }) {
+                uniquePresets.append(preset)
+            }
+        }
+        materialPresets = uniquePresets
     }
     
     func loadData() {
@@ -277,8 +300,12 @@ class MaterialStore: ObservableObject {
         
         if let presetsData = UserDefaults.standard.data(forKey: "materialPresets"),
            let decodedPresets = try? JSONDecoder().decode([MaterialPreset].self, from: presetsData) {
-            // 添加自定义预设（从JSON加载的预设已经在loadAllDefaultPresets中加载）
-            materialPresets.append(contentsOf: decodedPresets)
+            // 只添加不重复的自定义预设
+            for preset in decodedPresets {
+                if !materialPresets.contains(where: { $0.isContentEqual(to: preset) }) {
+                    materialPresets.append(preset)
+                }
+            }
         }
         
         // 加载自定义的品牌、分类等
@@ -305,12 +332,9 @@ class MaterialStore: ObservableObject {
             UserDefaults.standard.set(encodedRecords, forKey: "printRecords")
         }
         
-        // 只保存用户自定义添加的预设，JSON中的默认预设不需要保存
-        let customPresets = materialPresets.filter { preset in
-            // 这里需要根据实际情况判断哪些是自定义预设
-            // 暂时保存所有预设，因为无法准确区分JSON预设和自定义预设
-            true
-        }
+        // 为了避免重复，清空UserDefaults中的预设数据
+        // 只保存真正的自定义预设（非JSON中的预设）
+        let customPresets: [MaterialPreset] = []
         
         if let encodedPresets = try? JSONEncoder().encode(customPresets) {
             UserDefaults.standard.set(encodedPresets, forKey: "materialPresets")
@@ -349,8 +373,11 @@ class MaterialStore: ObservableObject {
     }
     
     func addPreset(_ preset: MaterialPreset) {
-        materialPresets.append(preset)
-        saveData()
+        // 检查是否已存在相同内容的预设
+        if !materialPresets.contains(where: { $0.isContentEqual(to: preset) }) {
+            materialPresets.append(preset)
+            saveData()
+        }
     }
     
     func addPrintRecord(_ record: PrintRecord) {
@@ -454,6 +481,12 @@ class MaterialStore: ObservableObject {
             customSubCategories.remove(at: index)
             saveData()
         }
+    }
+    
+    // 手动清理重复预设的方法（供调试使用）
+    func clearDuplicatePresets() {
+        removeDuplicatePresets()
+        saveData()
     }
     
     func getTotalUsedCost() -> Double {

@@ -278,10 +278,12 @@ struct MyMaterialsView: View {
             .navigationTitle("我的耗材")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddMaterialSheet = true
-                    }) {
-                        Image(systemName: "plus")
+                    HStack {
+                        Button(action: {
+                            isShowingAddMaterialSheet = true
+                        }) {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }
@@ -541,6 +543,7 @@ struct AddMaterialView: View {
                 remainingWeight: weightValue,
                 colorHex: colorHex,
                 gradientColorHex: isGradient ? gradientColorHex : nil,
+                gradientColors: nil, // 手动添加时暂不支持多色渐变，保持向后兼容
                 shortCode: shortCode.isEmpty ? nil : shortCode
             )
             
@@ -1178,7 +1181,7 @@ struct SilkTextureView: View {
                     path.addLine(to: CGPoint(x: i + height, y: 0))
                 }
             }
-            .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+            .stroke(Color.white.opacity(0.075), lineWidth: 0.5)
         }
     }
 }
@@ -1327,6 +1330,7 @@ struct SparkleTextureView: View {
     }
 }
 
+
 // MARK: 材料预设预览
 struct MaterialPresetPreviewSheet: View {
     let preset: MaterialPreset
@@ -1438,6 +1442,7 @@ struct MaterialPresetPreviewSheet: View {
         }
     }
 }
+
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
