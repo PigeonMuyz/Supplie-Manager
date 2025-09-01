@@ -178,15 +178,60 @@ struct MaterialPreset: Identifiable, Codable, Equatable {
     }
 }
 
-// 打印记录模型
+// 材料使用记录项
+struct MaterialUsageItem: Codable, Identifiable {
+    var id = UUID()
+    var materialId: UUID
+    var materialName: String
+    var weightUsed: Double
+}
+
+// 打印记录模型（支持多材料）
 struct PrintRecord: Identifiable, Codable {
     var id = UUID()
     var modelName: String
     var makerWorldLink: String
-    var materialId: UUID  // 直接关联到材料ID
-    var materialName: String  // 材料完整名称
-    var weightUsed: Double  // 使用的克数
+    var materialId: UUID  // 直接关联到材料ID（向后兼容）
+    var materialName: String  // 材料完整名称（向后兼容）
+    var weightUsed: Double  // 使用的克数（向后兼容）
     var date: Date
+    
+    // 新增多材料支持字段
+    var materialUsages: [MaterialUsageItem]? // 可选，为 nil 表示使用单材料模式
+    
+    // 判断是否为多材料记录
+    var isMultiMaterial: Bool { 
+        return materialUsages != nil && !materialUsages!.isEmpty 
+    }
+    
+    // 兼容性属性 - 获取所有使用的材料
+    var allMaterialUsages: [MaterialUsageItem] {
+        if let multiUsages = materialUsages, !multiUsages.isEmpty {
+            return multiUsages
+        } else {
+            // 向后兼容：将单材料转换为数组格式
+            return [MaterialUsageItem(materialId: materialId, materialName: materialName, weightUsed: weightUsed)]
+        }
+    }
+    
+    // 总重量
+    var totalWeightUsed: Double {
+        return allMaterialUsages.reduce(0) { $0 + $1.weightUsed }
+    }
+    
+    // 材料名称摘要（用于显示）
+    var materialNameSummary: String {
+        if isMultiMaterial {
+            let names = allMaterialUsages.map { $0.materialName }
+            if names.count <= 2 {
+                return names.joined(separator: " + ")
+            } else {
+                return "\(names.first ?? "")等\(names.count)种材料"
+            }
+        } else {
+            return materialName
+        }
+    }
 }
 
 // 颜色扩展，支持十六进制代码
@@ -384,12 +429,14 @@ class MaterialStore: ObservableObject {
         // 添加打印记录
         printRecords.append(record)
         
-        // 更新对应材料的剩余重量
-        if let index = materials.firstIndex(where: { $0.id == record.materialId }) {
-            materials[index].remainingWeight -= record.weightUsed
-            // 防止剩余克数变为负数
-            if materials[index].remainingWeight < 0 {
-                materials[index].remainingWeight = 0
+        // 更新所有相关材料的剩余重量
+        for usage in record.allMaterialUsages {
+            if let index = materials.firstIndex(where: { $0.id == usage.materialId }) {
+                materials[index].remainingWeight -= usage.weightUsed
+                // 防止剩余克数变为负数
+                if materials[index].remainingWeight < 0 {
+                    materials[index].remainingWeight = 0
+                }
             }
         }
         
@@ -397,7 +444,7 @@ class MaterialStore: ObservableObject {
     }
     
     func getTotalUsedWeight() -> Double {
-        return printRecords.reduce(0) { $0 + $1.weightUsed }
+        return printRecords.reduce(0) { $0 + $1.totalWeightUsed }
     }
     
     func getTotalConsumedWeight() -> Double {
@@ -420,13 +467,15 @@ class MaterialStore: ObservableObject {
         for index in indexSet {
             let recordToDelete = printRecords[index]
             
-            // 更新对应材料的剩余重量
-            if let materialIndex = materials.firstIndex(where: { $0.id == recordToDelete.materialId }) {
-                materials[materialIndex].remainingWeight += recordToDelete.weightUsed
-                
-                // 确保剩余重量不超过初始重量
-                if materials[materialIndex].remainingWeight > materials[materialIndex].initialWeight {
-                    materials[materialIndex].remainingWeight = materials[materialIndex].initialWeight
+            // 更新所有相关材料的剩余重量
+            for usage in recordToDelete.allMaterialUsages {
+                if let materialIndex = materials.firstIndex(where: { $0.id == usage.materialId }) {
+                    materials[materialIndex].remainingWeight += usage.weightUsed
+                    
+                    // 确保剩余重量不超过初始重量
+                    if materials[materialIndex].remainingWeight > materials[materialIndex].initialWeight {
+                        materials[materialIndex].remainingWeight = materials[materialIndex].initialWeight
+                    }
                 }
             }
         }
@@ -439,13 +488,15 @@ class MaterialStore: ObservableObject {
     func deletePrintRecord(id: UUID) {
         // 找到要删除的记录
         if let recordToDelete = printRecords.first(where: { $0.id == id }) {
-            // 更新对应材料的剩余重量（将已使用的重量加回去）
-            if let materialIndex = materials.firstIndex(where: { $0.id == recordToDelete.materialId }) {
-                materials[materialIndex].remainingWeight += recordToDelete.weightUsed
-                
-                // 确保剩余重量不超过初始重量
-                if materials[materialIndex].remainingWeight > materials[materialIndex].initialWeight {
-                    materials[materialIndex].remainingWeight = materials[materialIndex].initialWeight
+            // 更新所有相关材料的剩余重量（将已使用的重量加回去）
+            for usage in recordToDelete.allMaterialUsages {
+                if let materialIndex = materials.firstIndex(where: { $0.id == usage.materialId }) {
+                    materials[materialIndex].remainingWeight += usage.weightUsed
+                    
+                    // 确保剩余重量不超过初始重量
+                    if materials[materialIndex].remainingWeight > materials[materialIndex].initialWeight {
+                        materials[materialIndex].remainingWeight = materials[materialIndex].initialWeight
+                    }
                 }
             }
             
@@ -513,31 +564,26 @@ class MaterialStore: ObservableObject {
     }
     
     func getCostForRecord(_ record: PrintRecord) -> Double {
-        // 找到对应的材料
-        if let material = materials.first(where: { $0.id == record.materialId }) {
-            // 计算单价 = 总价 / 总重量
-            let unitPrice = material.price / material.initialWeight
-            // 计算成本 = 单价 * 使用量
-            return unitPrice * record.weightUsed
-        } else {
-            // 如果找不到对应材料（可能已被删除），尝试在所有打印记录中寻找相同材料ID的记录
-            if let similarRecord = printRecords.first(where: {
-                $0.materialId == record.materialId && $0.id != record.id
-            }), let material = materials.first(where: { $0.id == similarRecord.materialId }) {
+        var totalCost: Double = 0
+        
+        // 计算所有材料的成本
+        for usage in record.allMaterialUsages {
+            if let material = materials.first(where: { $0.id == usage.materialId }) {
+                // 计算单价 = 总价 / 总重量
                 let unitPrice = material.price / material.initialWeight
-                return unitPrice * record.weightUsed
+                // 计算成本 = 单价 * 使用量
+                totalCost += unitPrice * usage.weightUsed
+            } else {
+                // 如果找不到对应材料（可能已被删除），尝试用平均单价估算
+                let materialsWithPrices = materials.filter { $0.initialWeight > 0 }
+                if !materialsWithPrices.isEmpty {
+                    let averageUnitPrice = materialsWithPrices.map { $0.price / $0.initialWeight }.reduce(0, +) / Double(materialsWithPrices.count)
+                    totalCost += averageUnitPrice * usage.weightUsed
+                }
             }
-            
-            // 如果还是找不到，尝试用平均单价估算
-            let materialsWithPrices = materials.filter { $0.initialWeight > 0 }
-            if !materialsWithPrices.isEmpty {
-                let averageUnitPrice = materialsWithPrices.map { $0.price / $0.initialWeight }.reduce(0, +) / Double(materialsWithPrices.count)
-                return averageUnitPrice * record.weightUsed
-            }
-            
-            // 实在找不到任何参考价格，返回0
-            return 0
         }
+        
+        return totalCost
     }
     
     func markMaterialAsEmpty(id: UUID) {
@@ -546,6 +592,39 @@ class MaterialStore: ObservableObject {
             materials[index].remainingWeight = 0
             saveData()
         }
+    }
+    
+    // MARK: - 多材料记录便利方法
+    
+    // 创建多材料打印记录
+    func createMultiMaterialRecord(modelName: String, makerWorldLink: String, materialUsages: [MaterialUsageItem], date: Date = Date()) -> PrintRecord {
+        // 为向后兼容，设置主要材料（取重量最大的）
+        let primaryUsage = materialUsages.max(by: { $0.weightUsed < $1.weightUsed }) ?? materialUsages.first!
+        
+        return PrintRecord(
+            id: UUID(),
+            modelName: modelName,
+            makerWorldLink: makerWorldLink,
+            materialId: primaryUsage.materialId,
+            materialName: primaryUsage.materialName,
+            weightUsed: materialUsages.reduce(0) { $0 + $1.weightUsed },
+            date: date,
+            materialUsages: materialUsages
+        )
+    }
+    
+    // 创建单材料打印记录（向后兼容）
+    func createSingleMaterialRecord(modelName: String, makerWorldLink: String, materialId: UUID, materialName: String, weightUsed: Double, date: Date = Date()) -> PrintRecord {
+        return PrintRecord(
+            id: UUID(),
+            modelName: modelName,
+            makerWorldLink: makerWorldLink,
+            materialId: materialId,
+            materialName: materialName,
+            weightUsed: weightUsed,
+            date: date,
+            materialUsages: nil
+        )
     }
 }
 

@@ -4,6 +4,7 @@ struct BambuPrinterStatusView: View {
     @ObservedObject var printerManager: BambuPrinterManager
     @EnvironmentObject var store: MaterialStore
     @State private var showPrintHistory = false
+    @State private var canShowSheet = true // 防止多个 sheet 冲突
     
     // 添加定时器相关状态
     @State private var timer: Timer? = nil
@@ -32,8 +33,14 @@ struct BambuPrinterStatusView: View {
                     PrinterStatusCard(printer: printer)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            // 点击打开打印历史
-                            showPrintHistory = true
+                            // 防止快速点击导致的 sheet 冲突
+                            if canShowSheet {
+                                canShowSheet = false
+                                // 延迟一小段时间再显示 sheet
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    showPrintHistory = true
+                                }
+                            }
                         }
                 }
             }
@@ -41,6 +48,12 @@ struct BambuPrinterStatusView: View {
         .sheet(isPresented: $showPrintHistory) {
             PrintHistoryView(printerManager: printerManager)
                 .environmentObject(store)
+                .onDisappear {
+                    // sheet 关闭后重新允许显示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        canShowSheet = true
+                    }
+                }
         }
         .onAppear {
             // 启动定时器进行自动刷新
@@ -146,6 +159,12 @@ struct PrintHistoryView: View {
     @State private var loadedTasksCount = 20 // 初始加载记录数量
     @State private var isLoading = false
     @State private var selectedPrinterId: String? = nil
+    @State private var showAddToStatsSheet = false
+    @State private var selectedTask: PrintTaskInfo? = nil
+    @State private var isSheetPresenting = false // 更强鲁的 sheet 状态管理
+    
+    // 防止多个快速操作的计时器
+    @State private var lastActionTime = Date(timeIntervalSince1970: 0)
     
     var body: some View {
         NavigationView {
@@ -187,15 +206,33 @@ struct PrintHistoryView: View {
                                     .foregroundColor(Color.secondary)
                             } else {
                                 ForEach(Array(filteredTasks.prefix(loadedTasksCount))) { task in
-                                    PrintTaskRow(task: task)
-                                        .environmentObject(store)
-                                        .onAppear {
-                                            // 如果显示到列表最后几个项目，加载更多数据
-                                            if task.id == filteredTasks.prefix(loadedTasksCount).last?.id &&
-                                                loadedTasksCount < filteredTasks.count {
-                                                loadMoreTasks()
-                                            }
+                                    PrintTaskRow(task: task, onAddToStats: { selectedTask in
+                                        // 更强鲁的防冲突检查
+                                        let now = Date()
+                                        guard !isSheetPresenting,
+                                              !showAddToStatsSheet,
+                                              now.timeIntervalSince(lastActionTime) > 1.0 else {
+                                            print("Sheet presentation blocked - too frequent or already presenting")
+                                            return
                                         }
+                                        
+                                        lastActionTime = now
+                                        isSheetPresenting = true
+                                        self.selectedTask = selectedTask
+                                        
+                                        // 延迟显示以确保状态稳定
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                            showAddToStatsSheet = true
+                                        }
+                                    })
+                                    .environmentObject(store)
+                                    .onAppear {
+                                        // 如果显示到列表最后几个项目，加载更多数据
+                                        if task.id == filteredTasks.prefix(loadedTasksCount).last?.id &&
+                                            loadedTasksCount < filteredTasks.count {
+                                            loadMoreTasks()
+                                        }
+                                    }
                                 }
                                 
                                 // 如果还有更多内容可以加载，显示加载按钮
@@ -217,6 +254,18 @@ struct PrintHistoryView: View {
                     Button("关闭") {
                         dismiss()
                     }
+                }
+            }
+            .sheet(isPresented: $showAddToStatsSheet, onDismiss: {
+                // Sheet 完全关闭后重置状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isSheetPresenting = false
+                    selectedTask = nil
+                }
+            }) {
+                if let task = selectedTask {
+                    AddPrintTaskToStatsView(task: task, isPresented: $showAddToStatsSheet)
+                        .environmentObject(store)
                 }
             }
             .onAppear {
@@ -241,7 +290,7 @@ struct PrintHistoryView: View {
 // 打印任务行
 struct PrintTaskRow: View {
     let task: PrintTaskInfo
-    @State private var showAddToStatsSheet = false
+    let onAddToStats: (PrintTaskInfo) -> Void
     @EnvironmentObject var store: MaterialStore
     
     var body: some View {
@@ -277,7 +326,7 @@ struct PrintTaskRow: View {
             
             // 添加"添加到统计"按钮
             Button(action: {
-                showAddToStatsSheet = true
+                onAddToStats(task)
             }) {
                 HStack {
                     Image(systemName: "plus.circle")
@@ -289,9 +338,5 @@ struct PrintTaskRow: View {
             .padding(.top, 4)
         }
         .padding(.vertical, 4)
-        .sheet(isPresented: $showAddToStatsSheet) {
-            AddPrintTaskToStatsView(task: task, isPresented: $showAddToStatsSheet)
-                .environmentObject(store)
-        }
     }
 }

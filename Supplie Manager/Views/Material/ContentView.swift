@@ -32,6 +32,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("预设管理", systemImage: "paintbrush.fill")
                 }
+            
+            ToolsView()
+                .tabItem {
+                    Label("工具", systemImage: "wrench.and.screwdriver.fill")
+                }
         }
     }
 }

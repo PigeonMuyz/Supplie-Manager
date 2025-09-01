@@ -276,7 +276,7 @@ struct SparkleTextureView: View {
                 }
                 
                 // 创建闪烁点
-                for (index, opacity) in sparkleOpacity.enumerated() {
+                for (_, opacity) in sparkleOpacity.enumerated() {
                     let x = Double.random(in: 0...width)
                     let y = Double.random(in: 0...height)
                     

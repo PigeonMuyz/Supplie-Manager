@@ -10,6 +10,7 @@ private let dateFormatter: DateFormatter = {
 struct RecordUsageView: View {
     @ObservedObject var store: MaterialStore
     @State private var isShowingAddSheet = false
+    @State private var isShowingMultiMaterialSheet = false
     @State private var modelName = ""
     @State private var makerWorldLink = ""
     @State private var selectedMaterialId: UUID?
@@ -58,12 +59,38 @@ struct RecordUsageView: View {
                                 .font(.headline)
                                 
                             HStack {
-                                Text("使用材料: \(record.materialName)")
-                                    .font(.caption)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if record.isMultiMaterial {
+                                        HStack(spacing: 4) {
+                                            // 显示所有材料的颜色
+                                            ForEach(Array(record.allMaterialUsages.enumerated()), id: \.offset) { index, usage in
+                                                if let material = store.materials.first(where: { $0.id == usage.materialId }) {
+                                                    MaterialColorView(material: material, size: 12, strokeWidth: 0.5)
+                                                }
+                                            }
+                                            Text("多材料(\(record.allMaterialUsages.count)种)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Image(systemName: "square.stack.3d.up")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                        }
+                                    } else {
+                                        HStack(spacing: 4) {
+                                            if let material = store.materials.first(where: { $0.id == record.materialId }) {
+                                                MaterialColorView(material: material, size: 12, strokeWidth: 0.5)
+                                            }
+                                            Text(record.materialNameSummary)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
                                 Spacer()
-                                Text("\(String(format: "%.2f", record.weightUsed))g")
+                                Text("\(String(format: "%.2f", record.totalWeightUsed))g")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .foregroundColor(.secondary)
                             
                             HStack {
                                 Text("成本: ¥\(String(format: "%.2f", store.getCostForRecord(record)))")
@@ -125,9 +152,19 @@ struct RecordUsageView: View {
             .navigationTitle("打印记录")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddSheet = true
-                    }) {
+                    Menu {
+                        Button(action: {
+                            isShowingAddSheet = true
+                        }) {
+                            Label("单材料记录", systemImage: "circle")
+                        }
+                        
+                        Button(action: {
+                            isShowingMultiMaterialSheet = true
+                        }) {
+                            Label("多材料记录", systemImage: "square.stack.3d.up")
+                        }
+                    } label: {
                         Image(systemName: "plus")
                     }
                 }
@@ -200,13 +237,12 @@ struct RecordUsageView: View {
                                 // 限制用量不超过剩余量
                                 let actualWeight = min(weight, material.remainingWeight)
                                 
-                                let newRecord = PrintRecord(
+                                let newRecord = store.createSingleMaterialRecord(
                                     modelName: modelName,
                                     makerWorldLink: makerWorldLink,
                                     materialId: materialId,
                                     materialName: material.fullName,
-                                    weightUsed: actualWeight,
-                                    date: Date()
+                                    weightUsed: actualWeight
                                 )
                                 store.addPrintRecord(newRecord)
                                 isShowingAddSheet = false
@@ -217,6 +253,9 @@ struct RecordUsageView: View {
                                   (selectedMaterialId != nil && Double(weightUsed) ?? 0 <= 0))
                     )
                 }
+            }
+            .sheet(isPresented: $isShowingMultiMaterialSheet) {
+                MultiMaterialRecordView(store: store)
             }
             .onAppear {
                 // 重置加载计数器，以确保UI刷新时重新加载
