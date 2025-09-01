@@ -70,7 +70,7 @@ class ThreeMFFileHandle {
         guard let handle = fileHandle else { return }
         
         // 扫描中央目录，不加载文件内容
-        let fileSize = try handle.seekToEnd()
+        let fileSize = Int64(try handle.seekToEnd())
         
         // 查找中央目录结束记录
         var centralDirOffset: Int64 = -1
@@ -213,7 +213,7 @@ class ThreeMFFileHandle {
 
 class ThreeMFStreamParser: NSObject, XMLParserDelegate {
     private var parts: [ThreeMFPart] = []
-    private var materials: [String: ThreeMFMaterial] = []
+    private var materials: [String: ThreeMFMaterial] = [:]
     private var metadata: ThreeMFMetadata?
     
     private var currentElement = ""
@@ -399,7 +399,7 @@ class OptimizedThreeMFParser: ObservableObject {
     /// 按需生成预览（仅为选定的部件生成几何数据）
     func generatePreview(for partId: String, simplificationLevel: Float = 0.5) -> SCNNode? {
         guard let handle = fileHandle,
-              let part = parts.first(where: { $0.id == partId }) else { return nil }
+              let _ = parts.first(where: { $0.id == partId }) else { return nil }
         
         // 提取并解析特定部件的几何数据
         if let modelData = handle.extractFile(named: "3D/3dmodel.model") {
