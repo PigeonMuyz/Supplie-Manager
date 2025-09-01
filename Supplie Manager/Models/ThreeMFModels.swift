@@ -71,6 +71,10 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
     private var isInResources = false
     private var isInBaseMaterials = false
     
+    // 对象引用（有些3MF文件使用引用）
+    private var objectReferences: [String: String] = [:]
+    private var meshData: [String: (vertices: [Vertex], triangles: [Triangle])] = [:]
+    
     // 解析3MF文件
     func parse(fileURL: URL) -> (parts: [ThreeMFPart], materials: [String: ThreeMFMaterial], metadata: ThreeMFMetadata?) {
         print("开始解析3MF文件: \(fileURL.lastPathComponent)")
@@ -81,14 +85,25 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
         metadata = [:]
         currentVertices = []
         currentTriangles = []
+        objectReferences = [:]
+        meshData = [:]
         
         do {
             let fileData = try Data(contentsOf: fileURL)
             print("文件大小: \(fileData.count) bytes")
             
-            // 从ZIP中提取3D模型文件
-            if let modelData = extractModelFromZip(data: fileData) {
-                print("成功提取模型数据，大小: \(modelData.count) bytes")
+            // 提取所有模型文件
+            let modelFiles = extractAllModelFiles(from: fileData)
+            print("找到 \(modelFiles.count) 个模型文件")
+            
+            // 解析每个模型文件
+            for (fileName, modelData) in modelFiles {
+                print("解析文件: \(fileName), 大小: \(modelData.count) bytes")
+                
+                // 清空当前状态
+                currentVertices = []
+                currentTriangles = []
+                currentObject = nil
                 
                 // 解析XML
                 let parser = XMLParser(data: modelData)
@@ -98,21 +113,28 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
                 parser.shouldResolveExternalEntities = false
                 
                 if parser.parse() {
-                    print("XML解析成功")
-                    print("找到 \(parts.count) 个部件")
-                    print("找到 \(materials.count) 种材料")
+                    print("文件 \(fileName) 解析成功")
                 } else if let error = parser.parserError {
-                    print("XML解析错误: \(error)")
+                    print("文件 \(fileName) 解析错误: \(error)")
                 }
-            } else {
-                print("无法从ZIP文件中提取模型数据")
             }
+            
+            // 如果没有找到部件，尝试从mesh数据创建
+            if parts.isEmpty && !meshData.isEmpty {
+                print("从mesh数据创建部件...")
+                for (id, data) in meshData {
+                    let part = createPartFromMeshData(id: id, vertices: data.vertices, triangles: data.triangles)
+                    parts.append(part)
+                }
+            }
+            
+            print("最终: 找到 \(parts.count) 个部件, \(materials.count) 种材料")
             
             // 创建元数据
             let meta = ThreeMFMetadata(
                 title: metadata["Title"],
                 designer: metadata["Designer"],
-                description: metadata["Description"],
+                description: cleanDescription(metadata["Description"]),
                 partCount: parts.count,
                 totalVertices: parts.reduce(0) { $0 + $1.vertexCount },
                 totalTriangles: parts.reduce(0) { $0 + $1.triangleCount },
@@ -127,8 +149,28 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
         }
     }
     
-    // 从ZIP中提取3D模型文件
-    private func extractModelFromZip(data: Data) -> Data? {
+    // 清理HTML描述
+    private func cleanDescription(_ desc: String?) -> String? {
+        guard let desc = desc else { return nil }
+        // 移除HTML标签
+        let cleaned = desc.replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#34;", with: "\"")
+            .replacingOccurrences(of: "&amp;", with: "&")
+        
+        // 使用正则表达式移除HTML标签
+        let pattern = "<[^>]+>"
+        let regex = try? NSRegularExpression(pattern: pattern, options: [])
+        let range = NSRange(location: 0, length: cleaned.count)
+        let result = regex?.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: "")
+        
+        return result?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    // 提取所有模型文件
+    private func extractAllModelFiles(from data: Data) -> [(String, Data)] {
+        var modelFiles: [(String, Data)] = []
         var offset = 0
         
         while offset < data.count - 30 {
@@ -138,11 +180,19 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
                 // 读取文件头
                 guard offset + 30 <= data.count else { break }
                 
-                let compressionMethod = data[offset + 8] | (data[offset + 9] << 8)
-                let compressedSize = Int(data[offset + 18]) | (Int(data[offset + 19]) << 8) | 
-                                    (Int(data[offset + 20]) << 16) | (Int(data[offset + 21]) << 24)
-                let uncompressedSize = Int(data[offset + 22]) | (Int(data[offset + 23]) << 8) | 
-                                      (Int(data[offset + 24]) << 16) | (Int(data[offset + 25]) << 24)
+                // 读取压缩方法和大小
+                let compressionMethod = UInt16(data[offset + 8]) | (UInt16(data[offset + 9]) << 8)
+                
+                // 读取大小字段
+                var compressedSize = UInt32(data[offset + 18]) | 
+                                     (UInt32(data[offset + 19]) << 8) |
+                                     (UInt32(data[offset + 20]) << 16) | 
+                                     (UInt32(data[offset + 21]) << 24)
+                var uncompressedSize = UInt32(data[offset + 22]) | 
+                                       (UInt32(data[offset + 23]) << 8) |
+                                       (UInt32(data[offset + 24]) << 16) | 
+                                       (UInt32(data[offset + 25]) << 24)
+                
                 let fileNameLength = Int(data[offset + 26]) | (Int(data[offset + 27]) << 8)
                 let extraFieldLength = Int(data[offset + 28]) | (Int(data[offset + 29]) << 8)
                 
@@ -154,49 +204,146 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
                 if let fileName = String(data: data.subdata(in: fileNameStart..<fileNameEnd), encoding: .utf8) {
                     print("找到文件: \(fileName)")
                     
-                    // 查找3D模型文件
+                    // 检查是否需要读取ZIP64扩展字段
+                    if compressedSize == 0xFFFFFFFF || uncompressedSize == 0xFFFFFFFF {
+                        // 可能使用ZIP64格式，尝试从扩展字段读取
+                        if extraFieldLength >= 20 {
+                            let extraStart = fileNameEnd
+                            // 简化处理：如果大小字段是0xFFFFFFFF，尝试从后面读取实际大小
+                            // 这里我们跳过ZIP64的复杂解析，直接尝试读取合理大小的数据
+                            compressedSize = 0
+                            uncompressedSize = 0
+                        }
+                    }
+                    
+                    // 查找模型文件
                     if fileName.hasSuffix(".model") || fileName.contains("3dmodel") {
                         let dataStart = fileNameEnd + extraFieldLength
-                        let dataEnd = dataStart + (compressedSize > 0 ? compressedSize : uncompressedSize)
                         
-                        guard dataEnd <= data.count else { break }
+                        // 如果压缩大小为0，尝试查找下一个文件头来确定大小
+                        if compressedSize == 0 {
+                            var searchOffset = dataStart + 1
+                            while searchOffset < data.count - 4 {
+                                let nextSig = data.subdata(in: searchOffset..<searchOffset + 4)
+                                if nextSig == Data([0x50, 0x4B, 0x03, 0x04]) || 
+                                   nextSig == Data([0x50, 0x4B, 0x01, 0x02]) {
+                                    compressedSize = UInt32(searchOffset - dataStart)
+                                    break
+                                }
+                                searchOffset += 1
+                            }
+                            // 如果没找到下一个文件头，使用剩余数据大小
+                            if compressedSize == 0 {
+                                compressedSize = UInt32(min(data.count - dataStart, 10000000))
+                            }
+                        }
+                        
+                        let dataEnd = dataStart + Int(compressedSize)
+                        guard dataEnd <= data.count else { 
+                            offset += 1
+                            continue 
+                        }
                         
                         let fileData = data.subdata(in: dataStart..<dataEnd)
                         
-                        // 检查是否需要解压
+                        // 尝试解压或直接使用
                         if compressionMethod == 8 { // Deflate
-                            return decompressData(fileData)
+                            if let decompressed = decompressData(fileData) {
+                                modelFiles.append((fileName, decompressed))
+                                print("解压文件 \(fileName): \(decompressed.count) bytes")
+                            }
                         } else if compressionMethod == 0 { // 无压缩
-                            return fileData
+                            modelFiles.append((fileName, fileData))
+                            print("提取文件 \(fileName): \(fileData.count) bytes")
                         }
                     }
                 }
                 
-                offset = fileNameEnd + extraFieldLength + compressedSize
+                // 移动到下一个可能的位置
+                if compressedSize > 0 {
+                    offset = fileNameEnd + extraFieldLength + Int(compressedSize)
+                } else {
+                    offset += 1
+                }
             } else {
                 offset += 1
+            }
+        }
+        
+        return modelFiles
+    }
+    
+    // 解压数据
+    private func decompressData(_ data: Data) -> Data? {
+        // 尝试多种解压方式
+        
+        // 方式1：标准ZLIB
+        if let result = tryDecompress(data, algorithm: COMPRESSION_ZLIB) {
+            return result
+        }
+        
+        // 方式2：DEFLATE（无ZLIB头）
+        if let result = tryDecompress(data, algorithm: COMPRESSION_ZLIB, skipBytes: 0) {
+            return result
+        }
+        
+        // 方式3：尝试跳过可能的头部
+        for skip in [2, 4, 6] {
+            if data.count > skip {
+                let trimmed = data.subdata(in: skip..<data.count)
+                if let result = tryDecompress(trimmed, algorithm: COMPRESSION_ZLIB) {
+                    return result
+                }
             }
         }
         
         return nil
     }
     
-    // 解压数据
-    private func decompressData(_ data: Data) -> Data? {
-        return data.withUnsafeBytes { bytes in
+    private func tryDecompress(_ data: Data, algorithm: compression_algorithm, skipBytes: Int = 0) -> Data? {
+        let sourceData = skipBytes > 0 && data.count > skipBytes ? 
+                        data.subdata(in: skipBytes..<data.count) : data
+        
+        return sourceData.withUnsafeBytes { bytes in
             let sourceBuffer = bytes.bindMemory(to: UInt8.self).baseAddress!
-            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count * 10)
+            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: sourceData.count * 20)
             defer { destinationBuffer.deallocate() }
             
             let decompressedSize = compression_decode_buffer(
-                destinationBuffer, data.count * 10,
-                sourceBuffer, data.count,
-                nil, COMPRESSION_ZLIB
+                destinationBuffer, sourceData.count * 20,
+                sourceBuffer, sourceData.count,
+                nil, algorithm
             )
             
             guard decompressedSize > 0 else { return nil }
             return Data(bytes: destinationBuffer, count: decompressedSize)
         }
+    }
+    
+    // 从mesh数据创建部件
+    private func createPartFromMeshData(id: String, vertices: [Vertex], triangles: [Triangle]) -> ThreeMFPart {
+        var minBounds = SCNVector3(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude)
+        var maxBounds = SCNVector3(-Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude)
+        
+        for vertex in vertices {
+            minBounds.x = min(minBounds.x, vertex.x)
+            minBounds.y = min(minBounds.y, vertex.y)
+            minBounds.z = min(minBounds.z, vertex.z)
+            maxBounds.x = max(maxBounds.x, vertex.x)
+            maxBounds.y = max(maxBounds.y, vertex.y)
+            maxBounds.z = max(maxBounds.z, vertex.z)
+        }
+        
+        let bounds = vertices.isEmpty ? nil : (min: minBounds, max: maxBounds)
+        
+        return ThreeMFPart(
+            id: id,
+            name: "Object \(id)",
+            vertexCount: vertices.count,
+            triangleCount: triangles.count,
+            bounds: bounds,
+            materialId: triangles.first?.materialId
+        )
     }
     
     // MARK: - XMLParserDelegate
@@ -205,11 +352,6 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
         currentElement = elementName
         currentAttributes = attributeDict
         elementStack.append(elementName)
-        
-        // 打印调试信息
-        if elementName == "object" || elementName == "mesh" || elementName == "resources" || elementName == "basematerials" || elementName == "base" {
-            print("开始元素: \(elementName), 属性: \(attributeDict)")
-        }
         
         switch elementName {
         case "metadata":
@@ -239,8 +381,7 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
                         displayColor: color
                     )
                     materials[id] = material
-                    let colorStr = attributeDict["displaycolor"] ?? attributeDict["displayColor"]
-                    print("添加材料: \(id), 名称: \(material.name ?? "无"), 颜色: \(colorStr ?? "无")")
+                    print("添加材料: \(id)")
                 }
             }
             
@@ -250,10 +391,11 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
             currentObject = (id: id, name: name)
             currentVertices = []
             currentTriangles = []
-            print("开始解析对象: \(name) (ID: \(id))")
             
         case "mesh":
             isInMesh = true
+            currentVertices = []
+            currentTriangles = []
             
         case "vertices":
             if isInMesh {
@@ -261,7 +403,7 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
             }
             
         case "vertex":
-            if isInVertices {
+            if isInVertices || isInMesh {
                 if let xStr = attributeDict["x"], let x = Float(xStr),
                    let yStr = attributeDict["y"], let y = Float(yStr),
                    let zStr = attributeDict["z"], let z = Float(zStr) {
@@ -275,11 +417,11 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
             }
             
         case "triangle":
-            if isInTriangles {
+            if isInTriangles || isInMesh {
                 if let v1Str = attributeDict["v1"], let v1 = Int(v1Str),
                    let v2Str = attributeDict["v2"], let v2 = Int(v2Str),
                    let v3Str = attributeDict["v3"], let v3 = Int(v3Str) {
-                    let materialId = attributeDict["pid"] ?? attributeDict["PID"]
+                    let materialId = attributeDict["pid"] ?? attributeDict["PID"] ?? attributeDict["p1"]
                     currentTriangles.append(Triangle(v1: v1, v2: v2, v3: v3, materialId: materialId))
                 }
             }
@@ -290,7 +432,9 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
     }
     
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        elementStack.removeLast()
+        if !elementStack.isEmpty {
+            elementStack.removeLast()
+        }
         
         switch elementName {
         case "resources":
@@ -301,48 +445,51 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
             
         case "object":
             if let object = currentObject {
-                // 计算边界
-                var minBounds = SCNVector3(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude)
-                var maxBounds = SCNVector3(-Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude)
-                
-                for vertex in currentVertices {
-                    minBounds.x = min(minBounds.x, vertex.x)
-                    minBounds.y = min(minBounds.y, vertex.y)
-                    minBounds.z = min(minBounds.z, vertex.z)
-                    maxBounds.x = max(maxBounds.x, vertex.x)
-                    maxBounds.y = max(maxBounds.y, vertex.y)
-                    maxBounds.z = max(maxBounds.z, vertex.z)
+                // 保存mesh数据
+                if !currentVertices.isEmpty || !currentTriangles.isEmpty {
+                    meshData[object.id] = (vertices: currentVertices, triangles: currentTriangles)
                 }
                 
-                let bounds = currentVertices.isEmpty ? nil : (min: minBounds, max: maxBounds)
-                
-                let part = ThreeMFPart(
-                    id: object.id,
-                    name: object.name,
-                    vertexCount: currentVertices.count,
-                    triangleCount: currentTriangles.count,
-                    bounds: bounds,
-                    materialId: currentTriangles.first?.materialId
+                // 创建部件
+                let part = createPartFromMeshData(
+                    id: object.id, 
+                    vertices: currentVertices, 
+                    triangles: currentTriangles
                 )
                 
-                parts.append(part)
-                print("完成对象: \(object.name), 顶点: \(currentVertices.count), 三角形: \(currentTriangles.count)")
+                // 更新名称
+                var updatedPart = part
+                updatedPart = ThreeMFPart(
+                    id: part.id,
+                    name: object.name,
+                    vertexCount: part.vertexCount,
+                    triangleCount: part.triangleCount,
+                    bounds: part.bounds,
+                    materialId: part.materialId
+                )
+                
+                if updatedPart.vertexCount > 0 || updatedPart.triangleCount > 0 {
+                    parts.append(updatedPart)
+                    print("添加部件: \(object.name), 顶点: \(updatedPart.vertexCount), 三角形: \(updatedPart.triangleCount)")
+                }
                 
                 currentObject = nil
-                currentVertices = []
-                currentTriangles = []
             }
             
         case "mesh":
             isInMesh = false
+            // 如果没有当前对象，保存mesh数据供后续使用
+            if currentObject == nil && (!currentVertices.isEmpty || !currentTriangles.isEmpty) {
+                let meshId = "mesh_\(meshData.count)"
+                meshData[meshId] = (vertices: currentVertices, triangles: currentTriangles)
+                print("保存独立mesh: 顶点 \(currentVertices.count), 三角形 \(currentTriangles.count)")
+            }
             
         case "vertices":
             isInVertices = false
-            print("顶点解析完成，共 \(currentVertices.count) 个顶点")
             
         case "triangles":
             isInTriangles = false
-            print("三角形解析完成，共 \(currentTriangles.count) 个三角形")
             
         default:
             break
@@ -358,8 +505,13 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
         // 处理元数据
         if currentElement == "metadata" {
             if let name = currentAttributes["name"] {
-                metadata[name] = trimmedString
-                print("元数据: \(name) = \(trimmedString)")
+                // 合并多行描述
+                if name == "Description" {
+                    let existing = metadata[name] ?? ""
+                    metadata[name] = existing + trimmedString
+                } else {
+                    metadata[name] = trimmedString
+                }
             }
         }
     }
@@ -373,7 +525,6 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
         }
         
         guard hex.count == 6 || hex.count == 8 else { 
-            print("无效的颜色格式: \(hexString)")
             return nil 
         }
         
@@ -430,7 +581,7 @@ class OptimizedThreeMFParser: ObservableObject {
             self.isLoading = false
             
             if parts.isEmpty {
-                self.errorMessage = "未能从文件中提取模型数据"
+                self.errorMessage = "未能从文件中提取模型数据，请确认文件格式正确"
             }
         }
     }
