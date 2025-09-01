@@ -3,10 +3,9 @@ import SceneKit
 import Compression
 import UIKit
 
-// MARK: - 优化的3MF解析器
-// 使用流式解析和内存映射减少内存占用
+// MARK: - 3MF数据模型
 
-/// 3MF模型元数据（轻量级）
+/// 3MF模型元数据
 struct ThreeMFMetadata {
     let title: String?
     let designer: String?
@@ -24,7 +23,7 @@ struct ThreeMFMaterial {
     let displayColor: UIColor?
 }
 
-/// 简化的3D模型部件（仅存储必要信息）
+/// 3D模型部件信息
 struct ThreeMFPart: Identifiable {
     let id: String
     let name: String
@@ -34,268 +33,255 @@ struct ThreeMFPart: Identifiable {
     let materialId: String?
 }
 
-/// 3MF文件句柄（避免一次性加载整个文件）
-class ThreeMFFileHandle {
-    private let fileURL: URL
-    private var fileHandle: FileHandle?
-    private var zipEntries: [String: ZipEntry] = [:]
+/// 顶点数据
+struct Vertex {
+    let x: Float
+    let y: Float
+    let z: Float
+}
+
+/// 三角形数据
+struct Triangle {
+    let v1: Int
+    let v2: Int
+    let v3: Int
+    let materialId: String?
+}
+
+// MARK: - 完整的3MF解析器
+
+class ThreeMFParser: NSObject, XMLParserDelegate {
+    // 解析状态
+    private var currentElement = ""
+    private var currentAttributes: [String: String] = [:]
+    private var elementStack: [String] = []
     
-    struct ZipEntry {
-        let offset: Int64
-        let compressedSize: Int64
-        let uncompressedSize: Int64
-        let compressionMethod: UInt16
-    }
+    // 解析结果
+    private var parts: [ThreeMFPart] = []
+    private var materials: [String: ThreeMFMaterial] = [:]
+    private var metadata: [String: String] = [:]
     
-    init(url: URL) {
-        self.fileURL = url
-    }
+    // 当前正在解析的对象
+    private var currentObject: (id: String, name: String)?
+    private var currentVertices: [Vertex] = []
+    private var currentTriangles: [Triangle] = []
+    private var isInMesh = false
+    private var isInVertices = false
+    private var isInTriangles = false
+    private var isInResources = false
+    private var isInBaseMaterials = false
     
-    deinit {
-        close()
-    }
-    
-    func open() throws {
-        fileHandle = try FileHandle(forReadingFrom: fileURL)
-        try scanZipDirectory()
-    }
-    
-    func close() {
-        fileHandle?.closeFile()
-        fileHandle = nil
-        zipEntries.removeAll()
-    }
-    
-    private func scanZipDirectory() throws {
-        guard let handle = fileHandle else { return }
+    // 解析3MF文件
+    func parse(fileURL: URL) -> (parts: [ThreeMFPart], materials: [String: ThreeMFMaterial], metadata: ThreeMFMetadata?) {
+        print("开始解析3MF文件: \(fileURL.lastPathComponent)")
         
-        // 扫描中央目录，不加载文件内容
-        let fileSize = Int64(try handle.seekToEnd())
-        
-        // 查找中央目录结束记录
-        var centralDirOffset: Int64 = -1
-        let endSignature = Data([0x50, 0x4B, 0x05, 0x06])
-        
-        // 从文件末尾向前搜索
-        let searchSize: Int64 = min(65536, fileSize)
-        try handle.seek(toOffset: UInt64(max(0, fileSize - searchSize)))
-        let searchData = handle.readData(ofLength: Int(searchSize))
-        
-        if let range = searchData.range(of: endSignature) {
-            let endOffset = fileSize - searchSize + Int64(range.lowerBound)
-            try handle.seek(toOffset: UInt64(endOffset + 16))
-            
-            // 读取中央目录偏移
-            let offsetData = handle.readData(ofLength: 4)
-            centralDirOffset = Int64(offsetData.withUnsafeBytes { $0.load(as: UInt32.self) })
-        }
-        
-        if centralDirOffset >= 0 {
-            try scanCentralDirectory(at: centralDirOffset)
-        }
-    }
-    
-    private func scanCentralDirectory(at offset: Int64) throws {
-        guard let handle = fileHandle else { return }
-        
-        try handle.seek(toOffset: UInt64(offset))
-        let centralDirSignature = Data([0x50, 0x4B, 0x01, 0x02])
-        
-        while true {
-            let signatureData = handle.readData(ofLength: 4)
-            if signatureData != centralDirSignature {
-                break
-            }
-            
-            // 跳过版本信息
-            _ = handle.readData(ofLength: 24)
-            
-            // 读取文件名长度
-            let lengthsData = handle.readData(ofLength: 6)
-            let nameLength = lengthsData[0...1].withUnsafeBytes { $0.load(as: UInt16.self) }
-            let extraLength = lengthsData[2...3].withUnsafeBytes { $0.load(as: UInt16.self) }
-            let commentLength = lengthsData[4...5].withUnsafeBytes { $0.load(as: UInt16.self) }
-            
-            // 跳过磁盘号
-            _ = handle.readData(ofLength: 8)
-            
-            // 读取本地文件头偏移
-            let offsetData = handle.readData(ofLength: 4)
-            let localOffset = offsetData.withUnsafeBytes { $0.load(as: UInt32.self) }
-            
-            // 读取文件名
-            let nameData = handle.readData(ofLength: Int(nameLength))
-            if let fileName = String(data: nameData, encoding: .utf8) {
-                // 存储文件条目信息（稍后读取详细信息）
-                zipEntries[fileName] = ZipEntry(
-                    offset: Int64(localOffset),
-                    compressedSize: 0,
-                    uncompressedSize: 0,
-                    compressionMethod: 0
-                )
-            }
-            
-            // 跳过额外字段和注释
-            _ = handle.readData(ofLength: Int(extraLength + commentLength))
-        }
-    }
-    
-    func extractFile(named fileName: String) -> Data? {
-        guard let handle = fileHandle,
-              let entry = zipEntries[fileName] else { return nil }
+        // 重置状态
+        parts = []
+        materials = [:]
+        metadata = [:]
+        currentVertices = []
+        currentTriangles = []
         
         do {
-            // 读取本地文件头获取准确信息
-            try handle.seek(toOffset: UInt64(entry.offset))
+            let fileData = try Data(contentsOf: fileURL)
+            print("文件大小: \(fileData.count) bytes")
             
-            let signature = handle.readData(ofLength: 4)
-            guard signature == Data([0x50, 0x4B, 0x03, 0x04]) else { return nil }
-            
-            // 跳过版本和标志
-            _ = handle.readData(ofLength: 4)
-            
-            // 读取压缩方法
-            let methodData = handle.readData(ofLength: 2)
-            let compressionMethod = methodData.withUnsafeBytes { $0.load(as: UInt16.self) }
-            
-            // 跳过时间和CRC
-            _ = handle.readData(ofLength: 8)
-            
-            // 读取大小信息
-            let sizeData = handle.readData(ofLength: 8)
-            let compressedSize = sizeData[0...3].withUnsafeBytes { $0.load(as: UInt32.self) }
-            let uncompressedSize = sizeData[4...7].withUnsafeBytes { $0.load(as: UInt32.self) }
-            
-            // 读取文件名和额外字段长度
-            let lengthData = handle.readData(ofLength: 4)
-            let fileNameLength = lengthData[0...1].withUnsafeBytes { $0.load(as: UInt16.self) }
-            let extraFieldLength = lengthData[2...3].withUnsafeBytes { $0.load(as: UInt16.self) }
-            
-            // 跳过文件名和额外字段
-            _ = handle.readData(ofLength: Int(fileNameLength + extraFieldLength))
-            
-            // 读取文件数据
-            let fileData = handle.readData(ofLength: Int(compressedSize))
-            
-            // 根据压缩方法处理数据
-            if compressionMethod == 0 {
-                return fileData
-            } else if compressionMethod == 8 {
-                // Deflate压缩
-                return decompressData(fileData, uncompressedSize: Int(uncompressedSize))
+            // 从ZIP中提取3D模型文件
+            if let modelData = extractModelFromZip(data: fileData) {
+                print("成功提取模型数据，大小: \(modelData.count) bytes")
+                
+                // 解析XML
+                let parser = XMLParser(data: modelData)
+                parser.delegate = self
+                parser.shouldProcessNamespaces = true
+                parser.shouldReportNamespacePrefixes = true
+                parser.shouldResolveExternalEntities = false
+                
+                if parser.parse() {
+                    print("XML解析成功")
+                    print("找到 \(parts.count) 个部件")
+                    print("找到 \(materials.count) 种材料")
+                } else if let error = parser.parserError {
+                    print("XML解析错误: \(error)")
+                }
+            } else {
+                print("无法从ZIP文件中提取模型数据")
             }
             
+            // 创建元数据
+            let meta = ThreeMFMetadata(
+                title: metadata["Title"],
+                designer: metadata["Designer"],
+                description: metadata["Description"],
+                partCount: parts.count,
+                totalVertices: parts.reduce(0) { $0 + $1.vertexCount },
+                totalTriangles: parts.reduce(0) { $0 + $1.triangleCount },
+                fileSize: Int64(fileData.count)
+            )
+            
+            return (parts, materials, meta)
+            
         } catch {
-            print("提取文件失败: \(error)")
+            print("解析失败: \(error)")
+            return ([], [:], nil)
+        }
+    }
+    
+    // 从ZIP中提取3D模型文件
+    private func extractModelFromZip(data: Data) -> Data? {
+        var offset = 0
+        
+        while offset < data.count - 30 {
+            // 查找本地文件头签名
+            let signature = data.subdata(in: offset..<min(offset + 4, data.count))
+            if signature == Data([0x50, 0x4B, 0x03, 0x04]) {
+                // 读取文件头
+                guard offset + 30 <= data.count else { break }
+                
+                let compressionMethod = data[offset + 8] | (data[offset + 9] << 8)
+                let compressedSize = Int(data[offset + 18]) | (Int(data[offset + 19]) << 8) | 
+                                    (Int(data[offset + 20]) << 16) | (Int(data[offset + 21]) << 24)
+                let uncompressedSize = Int(data[offset + 22]) | (Int(data[offset + 23]) << 8) | 
+                                      (Int(data[offset + 24]) << 16) | (Int(data[offset + 25]) << 24)
+                let fileNameLength = Int(data[offset + 26]) | (Int(data[offset + 27]) << 8)
+                let extraFieldLength = Int(data[offset + 28]) | (Int(data[offset + 29]) << 8)
+                
+                let fileNameStart = offset + 30
+                let fileNameEnd = fileNameStart + fileNameLength
+                
+                guard fileNameEnd <= data.count else { break }
+                
+                if let fileName = String(data: data.subdata(in: fileNameStart..<fileNameEnd), encoding: .utf8) {
+                    print("找到文件: \(fileName)")
+                    
+                    // 查找3D模型文件
+                    if fileName.hasSuffix(".model") || fileName.contains("3dmodel") {
+                        let dataStart = fileNameEnd + extraFieldLength
+                        let dataEnd = dataStart + (compressedSize > 0 ? compressedSize : uncompressedSize)
+                        
+                        guard dataEnd <= data.count else { break }
+                        
+                        let fileData = data.subdata(in: dataStart..<dataEnd)
+                        
+                        // 检查是否需要解压
+                        if compressionMethod == 8 { // Deflate
+                            return decompressData(fileData)
+                        } else if compressionMethod == 0 { // 无压缩
+                            return fileData
+                        }
+                    }
+                }
+                
+                offset = fileNameEnd + extraFieldLength + compressedSize
+            } else {
+                offset += 1
+            }
         }
         
         return nil
     }
     
-    private func decompressData(_ data: Data, uncompressedSize: Int) -> Data? {
+    // 解压数据
+    private func decompressData(_ data: Data) -> Data? {
         return data.withUnsafeBytes { bytes in
-            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: uncompressedSize)
-            defer { buffer.deallocate() }
+            let sourceBuffer = bytes.bindMemory(to: UInt8.self).baseAddress!
+            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count * 10)
+            defer { destinationBuffer.deallocate() }
             
-            let result = compression_decode_buffer(
-                buffer, uncompressedSize,
-                bytes.bindMemory(to: UInt8.self).baseAddress!, data.count,
+            let decompressedSize = compression_decode_buffer(
+                destinationBuffer, data.count * 10,
+                sourceBuffer, data.count,
                 nil, COMPRESSION_ZLIB
             )
             
-            guard result > 0 else { return nil }
-            return Data(bytes: buffer, count: result)
+            guard decompressedSize > 0 else { return nil }
+            return Data(bytes: destinationBuffer, count: decompressedSize)
         }
     }
-}
-
-// MARK: - 流式XML解析器
-
-class ThreeMFStreamParser: NSObject, XMLParserDelegate {
-    private var parts: [ThreeMFPart] = []
-    private var materials: [String: ThreeMFMaterial] = [:]
-    private var metadata: ThreeMFMetadata?
     
-    private var currentElement = ""
-    private var currentPartId = ""
-    private var currentPartName = ""
-    private var vertexCount = 0
-    private var triangleCount = 0
-    private var isParsingMesh = false
+    // MARK: - XMLParserDelegate
     
-    // 用于计算边界
-    private var minBounds = SCNVector3(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude)
-    private var maxBounds = SCNVector3(-Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude)
-    
-    func parse(data: Data) -> (parts: [ThreeMFPart], materials: [String: ThreeMFMaterial], metadata: ThreeMFMetadata?) {
-        let parser = XMLParser(data: data)
-        parser.delegate = self
-        parser.parse()
-        
-        // 创建元数据
-        let meta = ThreeMFMetadata(
-            title: nil,
-            designer: nil,
-            description: nil,
-            partCount: parts.count,
-            totalVertices: parts.reduce(0) { $0 + $1.vertexCount },
-            totalTriangles: parts.reduce(0) { $0 + $1.triangleCount },
-            fileSize: Int64(data.count)
-        )
-        
-        return (parts, materials, meta)
-    }
-    
-    // XMLParserDelegate方法
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         currentElement = elementName
+        currentAttributes = attributeDict
+        elementStack.append(elementName)
+        
+        // 打印调试信息
+        if elementName == "object" || elementName == "mesh" || elementName == "resources" || elementName == "basematerials" || elementName == "base" {
+            print("开始元素: \(elementName), 属性: \(attributeDict)")
+        }
         
         switch elementName {
+        case "metadata":
+            // 元数据将在foundCharacters中处理
+            break
+            
+        case "resources":
+            isInResources = true
+            
+        case "basematerials":
+            if isInResources {
+                isInBaseMaterials = true
+            }
+            
+        case "base":
+            if isInBaseMaterials {
+                // 解析材料
+                if let id = attributeDict["id"] ?? attributeDict["ID"] {
+                    var color: UIColor?
+                    if let displayColor = attributeDict["displaycolor"] ?? attributeDict["displayColor"] {
+                        color = parseColor(from: displayColor)
+                    }
+                    
+                    let material = ThreeMFMaterial(
+                        id: id,
+                        name: attributeDict["name"] ?? attributeDict["Name"],
+                        displayColor: color
+                    )
+                    materials[id] = material
+                    let colorStr = attributeDict["displaycolor"] ?? attributeDict["displayColor"]
+                    print("添加材料: \(id), 名称: \(material.name ?? "无"), 颜色: \(colorStr ?? "无")")
+                }
+            }
+            
         case "object":
-            currentPartId = attributeDict["id"] ?? UUID().uuidString
-            currentPartName = attributeDict["name"] ?? "Part \(currentPartId)"
-            vertexCount = 0
-            triangleCount = 0
-            minBounds = SCNVector3(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude)
-            maxBounds = SCNVector3(-Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude)
+            let id = attributeDict["id"] ?? attributeDict["ID"] ?? UUID().uuidString
+            let name = attributeDict["name"] ?? attributeDict["Name"] ?? "Object \(id)"
+            currentObject = (id: id, name: name)
+            currentVertices = []
+            currentTriangles = []
+            print("开始解析对象: \(name) (ID: \(id))")
             
         case "mesh":
-            isParsingMesh = true
+            isInMesh = true
+            
+        case "vertices":
+            if isInMesh {
+                isInVertices = true
+            }
             
         case "vertex":
-            if isParsingMesh {
-                vertexCount += 1
-                
-                // 更新边界（不存储顶点数据）
+            if isInVertices {
                 if let xStr = attributeDict["x"], let x = Float(xStr),
                    let yStr = attributeDict["y"], let y = Float(yStr),
                    let zStr = attributeDict["z"], let z = Float(zStr) {
-                    minBounds.x = min(minBounds.x, x)
-                    minBounds.y = min(minBounds.y, y)
-                    minBounds.z = min(minBounds.z, z)
-                    maxBounds.x = max(maxBounds.x, x)
-                    maxBounds.y = max(maxBounds.y, y)
-                    maxBounds.z = max(maxBounds.z, z)
+                    currentVertices.append(Vertex(x: x, y: y, z: z))
                 }
+            }
+            
+        case "triangles":
+            if isInMesh {
+                isInTriangles = true
             }
             
         case "triangle":
-            if isParsingMesh {
-                triangleCount += 1
-            }
-            
-        case "basematerials":
-            // 解析材料
-            if let id = attributeDict["id"] {
-                var color: UIColor?
-                if let displayColor = attributeDict["displaycolor"] {
-                    color = parseColor(from: displayColor)
+            if isInTriangles {
+                if let v1Str = attributeDict["v1"], let v1 = Int(v1Str),
+                   let v2Str = attributeDict["v2"], let v2 = Int(v2Str),
+                   let v3Str = attributeDict["v3"], let v3 = Int(v3Str) {
+                    let materialId = attributeDict["pid"] ?? attributeDict["PID"]
+                    currentTriangles.append(Triangle(v1: v1, v2: v2, v3: v3, materialId: materialId))
                 }
-                materials[id] = ThreeMFMaterial(
-                    id: id,
-                    name: attributeDict["name"],
-                    displayColor: color
-                )
             }
             
         default:
@@ -304,36 +290,98 @@ class ThreeMFStreamParser: NSObject, XMLParserDelegate {
     }
     
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        elementStack.removeLast()
+        
         switch elementName {
-        case "mesh":
-            isParsingMesh = false
+        case "resources":
+            isInResources = false
+            
+        case "basematerials":
+            isInBaseMaterials = false
             
         case "object":
-            // 创建部件信息（不存储几何数据）
-            let bounds = (minBounds.x != Float.greatestFiniteMagnitude) ? (min: minBounds, max: maxBounds) : nil
-            let part = ThreeMFPart(
-                id: currentPartId,
-                name: currentPartName,
-                vertexCount: vertexCount,
-                triangleCount: triangleCount,
-                bounds: bounds,
-                materialId: nil
-            )
-            parts.append(part)
+            if let object = currentObject {
+                // 计算边界
+                var minBounds = SCNVector3(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude)
+                var maxBounds = SCNVector3(-Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude, -Float.greatestFiniteMagnitude)
+                
+                for vertex in currentVertices {
+                    minBounds.x = min(minBounds.x, vertex.x)
+                    minBounds.y = min(minBounds.y, vertex.y)
+                    minBounds.z = min(minBounds.z, vertex.z)
+                    maxBounds.x = max(maxBounds.x, vertex.x)
+                    maxBounds.y = max(maxBounds.y, vertex.y)
+                    maxBounds.z = max(maxBounds.z, vertex.z)
+                }
+                
+                let bounds = currentVertices.isEmpty ? nil : (min: minBounds, max: maxBounds)
+                
+                let part = ThreeMFPart(
+                    id: object.id,
+                    name: object.name,
+                    vertexCount: currentVertices.count,
+                    triangleCount: currentTriangles.count,
+                    bounds: bounds,
+                    materialId: currentTriangles.first?.materialId
+                )
+                
+                parts.append(part)
+                print("完成对象: \(object.name), 顶点: \(currentVertices.count), 三角形: \(currentTriangles.count)")
+                
+                currentObject = nil
+                currentVertices = []
+                currentTriangles = []
+            }
+            
+        case "mesh":
+            isInMesh = false
+            
+        case "vertices":
+            isInVertices = false
+            print("顶点解析完成，共 \(currentVertices.count) 个顶点")
+            
+        case "triangles":
+            isInTriangles = false
+            print("三角形解析完成，共 \(currentTriangles.count) 个三角形")
             
         default:
             break
         }
+        
+        currentElement = ""
+    }
+    
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        let trimmedString = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedString.isEmpty else { return }
+        
+        // 处理元数据
+        if currentElement == "metadata" {
+            if let name = currentAttributes["name"] {
+                metadata[name] = trimmedString
+                print("元数据: \(name) = \(trimmedString)")
+            }
+        }
     }
     
     private func parseColor(from hexString: String) -> UIColor? {
-        let hex = hexString.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        guard hex.count == 6 || hex.count == 8 else { return nil }
+        var hex = hexString.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        
+        // 处理不同格式的颜色值
+        if hex.hasPrefix("0x") || hex.hasPrefix("0X") {
+            hex = String(hex.dropFirst(2))
+        }
+        
+        guard hex.count == 6 || hex.count == 8 else { 
+            print("无效的颜色格式: \(hexString)")
+            return nil 
+        }
         
         var rgbValue: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&rgbValue)
         
         if hex.count == 6 {
+            // RGB格式
             return UIColor(
                 red: CGFloat((rgbValue & 0xFF0000) >> 16) / 255.0,
                 green: CGFloat((rgbValue & 0x00FF00) >> 8) / 255.0,
@@ -341,6 +389,7 @@ class ThreeMFStreamParser: NSObject, XMLParserDelegate {
                 alpha: 1.0
             )
         } else {
+            // RGBA格式
             return UIColor(
                 red: CGFloat((rgbValue & 0xFF000000) >> 24) / 255.0,
                 green: CGFloat((rgbValue & 0x00FF0000) >> 16) / 255.0,
@@ -351,7 +400,7 @@ class ThreeMFStreamParser: NSObject, XMLParserDelegate {
     }
 }
 
-// MARK: - 简化的3MF解析器（主类）
+// MARK: - 优化的3MF解析器（主接口）
 
 class OptimizedThreeMFParser: ObservableObject {
     @Published var isLoading = false
@@ -360,56 +409,33 @@ class OptimizedThreeMFParser: ObservableObject {
     @Published var parts: [ThreeMFPart] = []
     @Published var materials: [String: ThreeMFMaterial] = [:]
     
-    private var fileHandle: ThreeMFFileHandle?
+    private let parser = ThreeMFParser()
     
-    /// 解析3MF文件（仅提取元数据，不加载几何数据）
+    /// 解析3MF文件
     func parseMetadata(from url: URL) async {
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
         
-        do {
-            let handle = ThreeMFFileHandle(url: url)
-            try handle.open()
-            self.fileHandle = handle
+        // 在后台线程解析
+        let result = await Task.detached {
+            return self.parser.parse(fileURL: url)
+        }.value
+        
+        await MainActor.run {
+            self.parts = result.parts
+            self.materials = result.materials
+            self.metadata = result.metadata
+            self.isLoading = false
             
-            // 查找并解析主模型文件
-            if let modelData = handle.extractFile(named: "3D/3dmodel.model") {
-                let parser = ThreeMFStreamParser()
-                let result = parser.parse(data: modelData)
-                
-                await MainActor.run {
-                    self.parts = result.parts
-                    self.materials = result.materials
-                    self.metadata = result.metadata
-                    self.isLoading = false
-                }
-            } else {
-                throw ThreeMFError.invalidFormat
-            }
-        } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
+            if parts.isEmpty {
+                self.errorMessage = "未能从文件中提取模型数据"
             }
         }
     }
     
-    /// 按需生成预览（仅为选定的部件生成几何数据）
-    func generatePreview(for partId: String, simplificationLevel: Float = 0.5) -> SCNNode? {
-        guard let handle = fileHandle,
-              let _ = parts.first(where: { $0.id == partId }) else { return nil }
-        
-        // 提取并解析特定部件的几何数据
-        if let modelData = handle.extractFile(named: "3D/3dmodel.model") {
-            return parsePartGeometry(from: modelData, partId: partId, simplificationLevel: simplificationLevel)
-        }
-        
-        return nil
-    }
-    
-    /// 生成简化的预览（使用边界框）
+    /// 生成边界框预览
     func generateBoundingBoxPreview(for part: ThreeMFPart) -> SCNNode {
         let node = SCNNode()
         
@@ -418,9 +444,21 @@ class OptimizedThreeMFParser: ObservableObject {
             let height = CGFloat(bounds.max.y - bounds.min.y)
             let depth = CGFloat(bounds.max.z - bounds.min.z)
             
+            // 创建边界框
             let box = SCNBox(width: width, height: height, length: depth, chamferRadius: 0)
-            box.firstMaterial?.diffuse.contents = UIColor.systemBlue.withAlphaComponent(0.7)
-            box.firstMaterial?.isDoubleSided = true
+            
+            // 设置材质
+            let material = SCNMaterial()
+            if let materialId = part.materialId,
+               let mat = materials[materialId],
+               let color = mat.displayColor {
+                material.diffuse.contents = color
+            } else {
+                material.diffuse.contents = UIColor.systemBlue
+            }
+            material.transparency = 0.8
+            material.isDoubleSided = true
+            box.materials = [material]
             
             let boxNode = SCNNode(geometry: box)
             boxNode.position = SCNVector3(
@@ -430,49 +468,35 @@ class OptimizedThreeMFParser: ObservableObject {
             )
             
             node.addChildNode(boxNode)
+            
+            // 添加线框
+            let wireframe = SCNBox(width: width, height: height, length: depth, chamferRadius: 0)
+            let wireframeMaterial = SCNMaterial()
+            wireframeMaterial.diffuse.contents = UIColor.white
+            wireframeMaterial.fillMode = .lines
+            wireframe.materials = [wireframeMaterial]
+            
+            let wireframeNode = SCNNode(geometry: wireframe)
+            wireframeNode.position = boxNode.position
+            node.addChildNode(wireframeNode)
+        } else {
+            // 如果没有边界，创建一个默认的球体
+            let sphere = SCNSphere(radius: 10)
+            sphere.firstMaterial?.diffuse.contents = UIColor.systemGray
+            node.geometry = sphere
         }
         
         return node
     }
     
-    private func parsePartGeometry(from data: Data, partId: String, simplificationLevel: Float) -> SCNNode? {
-        // 这里实现具体的几何数据解析
-        // 为了演示，返回一个简单的占位节点
-        let node = SCNNode()
-        
-        // 实际实现时，这里应该：
-        // 1. 使用XMLParser解析特定部件的顶点和三角形
-        // 2. 根据simplificationLevel简化网格
-        // 3. 创建SCNGeometry
-        
-        return node
-    }
-    
-    deinit {
-        fileHandle?.close()
+    /// 生成简化预览（暂时返回边界框）
+    func generatePreview(for partId: String, simplificationLevel: Float = 0.5) -> SCNNode? {
+        guard let part = parts.first(where: { $0.id == partId }) else { return nil }
+        return generateBoundingBoxPreview(for: part)
     }
 }
 
-// MARK: - 错误定义
-
-enum ThreeMFError: LocalizedError {
-    case invalidFormat
-    case fileNotFound
-    case parsingFailed(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidFormat:
-            return "无效的3MF文件格式"
-        case .fileNotFound:
-            return "文件未找到"
-        case .parsingFailed(let reason):
-            return "解析失败: \(reason)"
-        }
-    }
-}
-
-// MARK: - 用于完整解析的轻量级结构（向后兼容）
+// MARK: - 兼容性结构
 
 struct ModelPart: Identifiable {
     let id: String
@@ -482,17 +506,10 @@ struct ModelPart: Identifiable {
     let materialId: String?
     
     func createSCNGeometry() -> SCNGeometry {
-        // 创建占位几何体
         let sphere = SCNSphere(radius: 1.0)
         sphere.firstMaterial?.diffuse.contents = UIColor.systemBlue
         return sphere
     }
-}
-
-struct Triangle {
-    let v1: Int
-    let v2: Int
-    let v3: Int
 }
 
 struct MaterialInfo {
@@ -516,60 +533,21 @@ struct ParsedThreeMFModel {
     let metadata: ModelMetadata?
 }
 
-// MARK: - 兼容旧API的包装器
+// MARK: - 错误定义
 
-class ThreeMFParser: ObservableObject {
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+enum ThreeMFError: LocalizedError {
+    case invalidFormat
+    case fileNotFound
+    case parsingFailed(String)
     
-    private let optimizedParser = OptimizedThreeMFParser()
-    
-    func parseThreeMFFile(at url: URL) async -> ParsedThreeMFModel? {
-        await optimizedParser.parseMetadata(from: url)
-        
-        // 转换为旧格式（仅用于兼容）
-        let parts = optimizedParser.parts.map { part in
-            ModelPart(
-                id: part.id,
-                name: part.name,
-                vertexCount: part.vertexCount,
-                triangleCount: part.triangleCount,
-                materialId: part.materialId
-            )
+    var errorDescription: String? {
+        switch self {
+        case .invalidFormat:
+            return "无效的3MF文件格式"
+        case .fileNotFound:
+            return "文件未找到"
+        case .parsingFailed(let reason):
+            return "解析失败: \(reason)"
         }
-        
-        let materials = optimizedParser.materials.reduce(into: [String: MaterialInfo]()) { result, item in
-            result[item.key] = MaterialInfo(
-                id: item.value.id,
-                name: item.value.name,
-                displayColor: item.value.displayColor.map { colorToHex($0) },
-                type: nil
-            )
-        }
-        
-        let metadata = optimizedParser.metadata.map { meta in
-            ModelMetadata(
-                title: meta.title,
-                designer: meta.designer,
-                description: meta.description,
-                copyright: nil,
-                createdDate: nil
-            )
-        }
-        
-        return ParsedThreeMFModel(
-            parts: parts,
-            originalMaterials: materials,
-            metadata: metadata
-        )
-    }
-    
-    private func colorToHex(_ color: UIColor) -> String {
-        var r: CGFloat = 0
-        var g: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 0
-        color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }
