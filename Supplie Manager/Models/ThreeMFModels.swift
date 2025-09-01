@@ -23,7 +23,7 @@ struct ThreeMFMaterial {
     let displayColor: UIColor?
 }
 
-/// 3D模型部件信息
+/// 3D模型部件信息（包含实际的mesh数据）
 struct ThreeMFPart: Identifiable {
     let id: String
     let name: String
@@ -31,6 +31,9 @@ struct ThreeMFPart: Identifiable {
     let triangleCount: Int
     let bounds: (min: SCNVector3, max: SCNVector3)?
     let materialId: String?
+    // 添加实际的mesh数据
+    let vertices: [Vertex]
+    let triangles: [Triangle]
 }
 
 /// 顶点数据
@@ -342,7 +345,9 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
             vertexCount: vertices.count,
             triangleCount: triangles.count,
             bounds: bounds,
-            materialId: triangles.first?.materialId
+            materialId: triangles.first?.materialId,
+            vertices: vertices,  // 保存顶点数据
+            triangles: triangles  // 保存三角形数据
         )
     }
     
@@ -465,7 +470,9 @@ class ThreeMFParser: NSObject, XMLParserDelegate {
                     vertexCount: part.vertexCount,
                     triangleCount: part.triangleCount,
                     bounds: part.bounds,
-                    materialId: part.materialId
+                    materialId: part.materialId,
+                    vertices: part.vertices,  // 保留顶点数据
+                    triangles: part.triangles  // 保留三角形数据
                 )
                 
                 if updatedPart.vertexCount > 0 || updatedPart.triangleCount > 0 {
@@ -640,10 +647,128 @@ class OptimizedThreeMFParser: ObservableObject {
         return node
     }
     
-    /// 生成简化预览（暂时返回边界框）
-    func generatePreview(for partId: String, simplificationLevel: Float = 0.5) -> SCNNode? {
+    /// 生成真实的3D模型预览
+    func generatePreview(for partId: String, simplificationLevel: Float = 1.0) -> SCNNode? {
         guard let part = parts.first(where: { $0.id == partId }) else { return nil }
-        return generateBoundingBoxPreview(for: part)
+        
+        // 如果没有顶点数据，返回边界框
+        guard !part.vertices.isEmpty && !part.triangles.isEmpty else {
+            return generateBoundingBoxPreview(for: part)
+        }
+        
+        // 创建SceneKit几何体
+        return createSCNGeometry(from: part)
+    }
+    
+    /// 从部件数据创建SceneKit几何体
+    private func createSCNGeometry(from part: ThreeMFPart) -> SCNNode {
+        let node = SCNNode()
+        
+        // 转换顶点为SCNVector3数组
+        var scnVertices: [SCNVector3] = []
+        for vertex in part.vertices {
+            scnVertices.append(SCNVector3(vertex.x, vertex.y, vertex.z))
+        }
+        
+        // 创建顶点源
+        let vertexSource = SCNGeometrySource(vertices: scnVertices)
+        
+        // 创建三角形索引
+        var indices: [Int32] = []
+        for triangle in part.triangles {
+            // 3MF的索引是从0开始的
+            indices.append(Int32(triangle.v1))
+            indices.append(Int32(triangle.v2))
+            indices.append(Int32(triangle.v3))
+        }
+        
+        // 创建几何元素
+        let indexData = Data(bytes: indices, count: indices.count * MemoryLayout<Int32>.size)
+        let element = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .triangles,
+            primitiveCount: part.triangles.count,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+        
+        // 计算法线
+        let normalSource = calculateNormals(vertices: scnVertices, triangles: part.triangles)
+        
+        // 创建几何体
+        let geometry = SCNGeometry(sources: [vertexSource, normalSource], elements: [element])
+        
+        // 设置材质
+        let material = SCNMaterial()
+        if let materialId = part.materialId,
+           let mat = materials[materialId],
+           let color = mat.displayColor {
+            material.diffuse.contents = color
+        } else {
+            // 默认材质
+            material.diffuse.contents = UIColor.systemBlue
+        }
+        material.isDoubleSided = true
+        material.lightingModel = .blinn
+        geometry.materials = [material]
+        
+        // 创建节点
+        let geometryNode = SCNNode(geometry: geometry)
+        node.addChildNode(geometryNode)
+        
+        return node
+    }
+    
+    /// 计算法线
+    private func calculateNormals(vertices: [SCNVector3], triangles: [Triangle]) -> SCNGeometrySource {
+        var normals = Array(repeating: SCNVector3(0, 0, 0), count: vertices.count)
+        
+        // 计算每个三角形的法线并累加到顶点
+        for triangle in triangles {
+            let v0 = vertices[triangle.v1]
+            let v1 = vertices[triangle.v2]
+            let v2 = vertices[triangle.v3]
+            
+            // 计算三角形法线
+            let edge1 = SCNVector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z)
+            let edge2 = SCNVector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z)
+            
+            let normal = crossProduct(edge1, edge2)
+            
+            // 累加到顶点法线
+            normals[triangle.v1] = addVectors(normals[triangle.v1], normal)
+            normals[triangle.v2] = addVectors(normals[triangle.v2], normal)
+            normals[triangle.v3] = addVectors(normals[triangle.v3], normal)
+        }
+        
+        // 归一化法线
+        for i in 0..<normals.count {
+            normals[i] = normalizeVector(normals[i])
+        }
+        
+        return SCNGeometrySource(normals: normals)
+    }
+    
+    /// 向量叉积
+    private func crossProduct(_ a: SCNVector3, _ b: SCNVector3) -> SCNVector3 {
+        return SCNVector3(
+            a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x
+        )
+    }
+    
+    /// 向量加法
+    private func addVectors(_ a: SCNVector3, _ b: SCNVector3) -> SCNVector3 {
+        return SCNVector3(a.x + b.x, a.y + b.y, a.z + b.z)
+    }
+    
+    /// 向量归一化
+    private func normalizeVector(_ v: SCNVector3) -> SCNVector3 {
+        let length = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+        if length > 0 {
+            return SCNVector3(v.x / length, v.y / length, v.z / length)
+        }
+        return SCNVector3(0, 1, 0)  // 默认向上
     }
 }
 

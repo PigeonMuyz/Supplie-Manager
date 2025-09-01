@@ -7,7 +7,7 @@ struct ThreeMFPreviewView: View {
     @StateObject private var parser = OptimizedThreeMFParser()
     @State private var showingFilePicker = false
     @State private var selectedPartIndex = 0
-    @State private var previewMode: PreviewMode = .boundingBox
+    @State private var previewMode: PreviewMode = .simplified  // 默认显示真实模型
     @State private var fileURL: URL?
     
     enum PreviewMode: String, CaseIterable {
